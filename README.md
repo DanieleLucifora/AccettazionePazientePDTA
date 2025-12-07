@@ -1,6 +1,6 @@
 # Workflow accettazione paziente PDTA
 
-![Diagramma BPMN](bpmn/presa_in_carico_pdta.png)
+![Diagramma BPMN](/presa_in_carico_pdta.png)
 
 ## Descrizione del Progetto
 Il progetto implementa un workflow dimostrativo focalizzato sulla fase di accettazione di un paziente all'interno di un Percorso Diagnostico Terapeutico Assistenziale (PDTA). Il sistema automatizza i passaggi preliminari di verifica e validazione necessari per la presa in carico.
