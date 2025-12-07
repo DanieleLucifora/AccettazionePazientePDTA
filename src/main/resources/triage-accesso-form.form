@@ -1,0 +1,43 @@
+{
+  "components": [
+    {
+      "label": "ID Paziente",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_0lbeh3q",
+        "columns": null
+      },
+      "id": "Field_1lieebm",
+      "key": "patientID"
+    },
+    {
+      "label": "Codice Patologia",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_00c7n2x",
+        "columns": null
+      },
+      "id": "Field_18q8umw",
+      "key": "diagnosiCode"
+    },
+    {
+      "label": "Dati Anagrafici",
+      "type": "textarea",
+      "layout": {
+        "row": "Row_1u5zyle",
+        "columns": null
+      },
+      "id": "Field_0aanfhx",
+      "key": "patientData"
+    }
+  ],
+  "type": "default",
+  "id": "triage-accesso-form",
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.8.0",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.41.0"
+  },
+  "schemaVersion": 19
+}

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_0ccoy6c" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.41.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.8.0">
+  <decision id="verifica-criteri-inclusione" name="Verifica Criteri Inclusione">
+    <decisionTable id="DecisionTable_1jj5z4o">
+      <input id="Input_1" label="Diagnosi">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>diagnosiCode</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_1t3oa2z">
+          <text>"6401","1001","7001","2609","5201","3202"</text>
+        </inputValues>
+      </input>
+      <output id="Output_1" name="isEligible" typeRef="boolean" />
+      <rule id="DecisionRule_0or3ay1">
+        <inputEntry id="UnaryTests_1ux9h4r">
+          <text>"6401"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1gyuztl">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_01gdco1">
+        <inputEntry id="UnaryTests_1g78aof">
+          <text>"7001"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_0ztfd4e">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_0m8j317">
+        <inputEntry id="UnaryTests_1u3muwu">
+          <text>"2609"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_05s1a4p">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_1k5m8sd">
+        <inputEntry id="UnaryTests_0tgvbjc">
+          <text>"5201"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1pvjhd4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_11ut85f">
+        <inputEntry id="UnaryTests_11qxy9x">
+          <text>"3202"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1w4do4j">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_1o4vd86">
+        <inputEntry id="UnaryTests_1nh4hmc">
+          <text>"1001"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1cgbxzu">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="verifica-criteri-inclusione">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

@@ -1,0 +1,13 @@
+server:
+  port: 8081
+
+# Configurazione Camunda Client per Self-Managed (locale)
+# Usa il nuovo namespace 'camunda' invece del deprecato 'zeebe'
+camunda:
+  client:
+    mode: self-managed
+    auth:
+      method: none  # Nessuna autenticazione per ambiente locale
+    grpc-address: http://127.0.0.1:26500  # Indirizzo gateway Zeebe per gRPC
+    rest-address: http://127.0.0.1:8080   # Indirizzo API REST Camunda
+    # I worker si configurano tramite annotation @JobWorker nei bean Spring

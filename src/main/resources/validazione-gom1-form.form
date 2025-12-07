@@ -1,0 +1,77 @@
+{
+  "components": [
+    {
+      "label": "ID Paziente",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_14qf1hb",
+        "columns": null
+      },
+      "id": "Field_1358tvb",
+      "key": "patientID",
+      "readonly": true
+    },
+    {
+      "label": "Codice Patologia",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_0rz0dm0",
+        "columns": null
+      },
+      "id": "Field_157vib7",
+      "key": "diagnosis",
+      "readonly": true
+    },
+    {
+      "label": "Anagrafica Paziente",
+      "type": "textarea",
+      "layout": {
+        "row": "Row_0y64f5k",
+        "columns": null
+      },
+      "id": "Field_0e7edtk",
+      "key": "patientData",
+      "readonly": true
+    },
+    {
+      "label": "Pre-Validato",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_0ypgmua",
+        "columns": null
+      },
+      "id": "Field_15dwx1z",
+      "key": "isElegible",
+      "readonly": true
+    },
+    {
+      "label": "Accettato",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_0ypgmua",
+        "columns": null
+      },
+      "id": "Field_0wrobrc",
+      "key": "gom1Approved"
+    },
+    {
+      "label": "Note",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_030882l",
+        "columns": null
+      },
+      "id": "Field_0gyvig1",
+      "key": "gom1Note"
+    }
+  ],
+  "type": "default",
+  "id": "validazione-gom1-form",
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.8.0",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.41.0"
+  },
+  "schemaVersion": 19
+}

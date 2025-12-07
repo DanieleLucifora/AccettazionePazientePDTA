@@ -1,0 +1,13 @@
+# Profilo Spring per CLI (SecretaryCli, Doctor1Cli, Doctor2Cli)
+# Disabilita i worker Camunda per evitare thread inutili nelle CLI
+
+camunda:
+  client:
+    mode: self-managed
+    auth:
+      method: none
+    grpc-address: http://127.0.0.1:26500
+    rest-address: http://127.0.0.1:8080
+    worker:
+      defaults:
+        enabled: false  # Disabilita TUTTI i worker - le CLI usano solo CamundaClient e REST API
