@@ -13,9 +13,18 @@ Il flusso operativo prevede:
 
 ## Tecnologie Utilizzate
 *   **Linguaggio:** Java 21
-*   **Framework:** Spring Boot 3.5.8
+*   **Framework:** Spring Boot 3.5.8 (solo per applicazione principale)
 *   **Orchestrator:** Camunda Platform 8 (Zeebe Engine)
 *   **Build Tool:** Maven
+
+## Architettura del Sistema
+Il sistema è composto da:
+*   **PdtaCamundaApplication** (Spring Boot): Applicazione principale che esegue i worker Camunda in background per processare automaticamente i job (firma documenti, generazione PDTA)
+*   **CLI Standalone** : Tre applicazioni Java pure senza Spring Boot per l'interazione utente:
+    *   `SecretaryCli`: Interfaccia segreteria per inserimento pazienti
+    *   `Doctor1Cli`: Interfaccia medico GOM1 per validazione
+    *   `Doctor2Cli`: Interfaccia medico GOM2 per validazione
+*   **Camunda REST Client**: Utilizzato dalle CLI per interagire con i processi e i task tramite API REST v2
 
 ## Prerequisiti
 Per eseguire l'applicazione è necessario disporre di:
@@ -36,24 +45,28 @@ Compilare il progetto ed eseguire i test unitari:
 ```
 
 ### 3. Esecuzione dei Componenti
-Il sistema è composto da diverse applicazioni CLI che devono essere avviate in finestre di terminale separate, nel seguente ordine:
+Il sistema è composto da diverse applicazioni che devono essere avviate in finestre di terminale separate, nel seguente ordine:
 
-**Terminale 1: Applicazione Principale (Worker e Controller)**
+**Terminale 1: Applicazione Principale (Worker Camunda)**
 ```bash
 ./start-app.sh
 ```
+Avvia l'applicazione Spring Boot con i worker Camunda che processano automaticamente i job in background.
 
 **Terminale 2: Interfaccia Segreteria (Avvio Processi)**
 ```bash
 ./start-secretary.sh
 ```
+CLI Java standalone per l'inserimento di nuovi pazienti nel sistema PDTA.
 
 **Terminale 3: Interfaccia Medico 1 (GOM 1)**
 ```bash
 ./start-doctor1.sh
 ```
+CLI Java standalone per la validazione medica di primo livello.
 
 **Terminale 4: Interfaccia Medico 2 (GOM 2)**
 ```bash
 ./start-doctor2.sh
 ```
+CLI Java standalone per la validazione medica di secondo livello.

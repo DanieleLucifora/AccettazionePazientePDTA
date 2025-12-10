@@ -1,9 +1,5 @@
 package it.uni.pdta.pdta_camunda.cli;
 
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
 import java.io.Console;
 import java.util.HashMap;
 import java.util.List;
@@ -21,8 +17,7 @@ import java.util.Scanner;
  * 5. Assegna e completa task tramite API REST v2
  *
  */
-@SpringBootApplication
-public class Doctor2Cli implements CommandLineRunner {
+public class Doctor2Cli {
 
     private static final int POLL_INTERVAL_MS = 5000;
     private final CamundaRestClient restClient;
@@ -33,16 +28,11 @@ public class Doctor2Cli implements CommandLineRunner {
         this.scanner = new Scanner(System.in);
     }
 
-    public static void main(String[] args) {
-        System.setProperty("logging.level.root", "ERROR");
-        System.setProperty("spring.main.banner-mode", "off");
-        System.setProperty("spring.main.log-startup-info", "false");
-        System.setProperty("spring.main.web-application-type", "none");
-
-        SpringApplication.run(Doctor2Cli.class, args);
+    public static void main(String[] args) throws Exception {
+        Doctor2Cli cli = new Doctor2Cli();
+        cli.run(args);
     }
 
-    @Override
     public void run(String... args) throws Exception {
         printHeader();
 

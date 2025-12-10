@@ -2,9 +2,6 @@ package it.uni.pdta.pdta_camunda.cli;
 
 import io.camunda.client.CamundaClient;
 import io.camunda.client.api.response.ProcessInstanceEvent;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -23,8 +20,7 @@ import java.util.Scanner;
  * 5. Assegna e completa task automaticamente
  *
  */
-@SpringBootApplication
-public class SecretaryCli implements CommandLineRunner {
+public class SecretaryCli {
 
     private final CamundaClient camundaClient;
     private final CamundaRestClient restClient;
@@ -38,16 +34,11 @@ public class SecretaryCli implements CommandLineRunner {
         this.restClient = new CamundaRestClient("http://localhost:8080/v2");
     }
 
-    public static void main(String[] args) {
-        System.setProperty("logging.level.root", "ERROR");
-        System.setProperty("spring.main.banner-mode", "off");
-        System.setProperty("spring.main.log-startup-info", "false");
-        System.setProperty("spring.main.web-application-type", "none");
-
-        SpringApplication.run(SecretaryCli.class, args);
+    public static void main(String[] args) throws Exception {
+        SecretaryCli cli = new SecretaryCli();
+        cli.run(args);
     }
 
-    @Override
     public void run(String... args) throws Exception {
         Scanner scanner = new Scanner(System.in);
         printHeader();
