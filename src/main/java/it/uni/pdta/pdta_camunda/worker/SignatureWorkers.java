@@ -1,42 +1,59 @@
 package it.uni.pdta.pdta_camunda.worker;
 
+import io.camunda.zeebe.client.api.response.ActivatedJob;
+import io.camunda.zeebe.client.api.worker.JobClient;
 import io.camunda.zeebe.spring.client.annotation.JobWorker;
-import io.camunda.zeebe.spring.client.annotation.VariablesAsType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-/**
- * Worker automatico per la gestione delle firme digitali dei medici GOM.
- * Questi worker vengono eseguiti automaticamente quando Camunda rileva job del tipo specificato.
- */
 @Component
 public class SignatureWorkers {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SignatureWorkers.class);
-    private static final String GOM1_SECRET = "GOM1-SECRET-123-";
-    private static final String GOM2_SECRET = "GOM2-SECRET-123-";
+    private static final Logger logger = LoggerFactory.getLogger(SignatureWorkers.class);
 
-    public static class PdtaVars {
-        public String patientID;
-        public String diagnosiCode;
+    @JobWorker(type = "sign-document-chirurgo")
+    public void signDocumentChirurgo(final JobClient client, final ActivatedJob job) {
+        signDocument(client, job, "CHIRURGO");
     }
 
-    @JobWorker(type = "sign-document-gom1")
-    public Map<String, Object> signGom1(@VariablesAsType PdtaVars vars) {
-        LOG.info("Firma digitale GOM1 per paziente={}, diagnosi={}", vars.patientID, vars.diagnosiCode);
-
-        String signature = GOM1_SECRET + vars.patientID;
-        return Map.of("gom1Signed", true, "gom1Signature", signature);
+    @JobWorker(type = "sign-document-oncologo")
+    public void signDocumentOncologo(final JobClient client, final ActivatedJob job) {
+        signDocument(client, job, "ONCOLOGO");
     }
 
-    @JobWorker(type = "sign-document-gom2")
-    public Map<String, Object> signGom2(@VariablesAsType PdtaVars vars) {
-        LOG.info("Firma digitale GOM2 per paziente={}, diagnosi={}", vars.patientID, vars.diagnosiCode);
+    private void signDocument(JobClient client, ActivatedJob job, String role) {
+        Map<String, Object> variables = job.getVariablesAsMap();
+        String patientID = (String) variables.get("patientID");
+        
+        logger.info("Firma digitale in corso per {} - Paziente: {}", role, patientID);
 
-        String signature = GOM2_SECRET + vars.patientID;
-        return Map.of("gom2Signed", true, "gom2Signature", signature);
+        // Simulazione logica di firma (es. generazione hash)
+        String signature = "SIGNED_" + role + "_" + patientID + "_" + System.currentTimeMillis();
+        
+        // Determina i nomi delle variabili in base al ruolo
+        String signedVarName;
+        String signatureVarName;
+        
+        if ("CHIRURGO".equals(role)) {
+            signedVarName = "chirurgoSigned";
+            signatureVarName = "chirurgoSignature";
+        } else {
+            signedVarName = "oncologoSigned";
+            signatureVarName = "oncologoSignature";
+        }
+        
+        // Aggiungi firma e flag alle variabili
+        variables.put(signedVarName, true);
+        variables.put(signatureVarName, signature);
+
+        logger.info("Documento firmato digitalmente da {}. Signature: {}", role, signature);
+
+        client.newCompleteCommand(job.getKey())
+                .variables(variables)
+                .send()
+                .join();
     }
 }

@@ -6,9 +6,9 @@
 Il progetto implementa un workflow dimostrativo focalizzato sulla fase di accettazione di un paziente all'interno di un Percorso Diagnostico Terapeutico Assistenziale (PDTA). Il sistema automatizza i passaggi preliminari di verifica e validazione necessari per la presa in carico.
 
 Il flusso operativo prevede:
-1.  **Registrazione:** Inserimento dati paziente tramite interfaccia amministrativa.
+1.  **Registrazione:** Inserimento dati paziente tramite interfaccia Case Manager.
 2.  **Valutazione Automatica:** Verifica dei criteri di inclusione tramite regole DMN.
-3.  **Approvazione Medica:** Workflow sequenziale di validazione da parte di due livelli medici (GOM 1 e GOM 2).
+3.  **Approvazione Specialistica:** Workflow parallelo di validazione da parte di Chirurgo e Oncologo.
 4.  **Finalizzazione:** Generazione automatica del documento PDTA con apposizione di firme digitali simulate.
 
 ## Tecnologie Utilizzate
@@ -20,10 +20,9 @@ Il flusso operativo prevede:
 ## Architettura del Sistema
 Il sistema è composto da:
 *   **PdtaCamundaApplication** (Spring Boot): Applicazione principale che esegue i worker Camunda in background per processare automaticamente i job (firma documenti, generazione PDTA)
-*   **CLI Standalone** : Tre applicazioni Java pure senza Spring Boot per l'interazione utente:
-    *   `SecretaryCli`: Interfaccia segreteria per inserimento pazienti
-    *   `Doctor1Cli`: Interfaccia medico GOM1 per validazione
-    *   `Doctor2Cli`: Interfaccia medico GOM2 per validazione
+*   **CLI Standalone** : Due applicazioni Java pure senza Spring Boot per l'interazione utente:
+    *   `CaseManagerCli`: Interfaccia per inserimento pazienti e avvio processo
+    *   `SpecialistCli`: Interfaccia unificata per Chirurghi e Oncologi
 *   **Camunda REST Client**: Utilizzato dalle CLI per interagire con i processi e i task tramite API REST v2
 
 ## Prerequisiti
@@ -53,20 +52,20 @@ Il sistema è composto da diverse applicazioni che devono essere avviate in fine
 ```
 Avvia l'applicazione Spring Boot con i worker Camunda che processano automaticamente i job in background.
 
-**Terminale 2: Interfaccia Segreteria (Avvio Processi)**
+**Terminale 2: Interfaccia Case Manager (Avvio Processi)**
 ```bash
-./start-secretary.sh
+./start-casemanager.sh
 ```
 CLI Java standalone per l'inserimento di nuovi pazienti nel sistema PDTA.
 
-**Terminale 3: Interfaccia Medico 1 (GOM 1)**
+**Terminale 3: Interfaccia Specialista (Chirurgo)**
 ```bash
-./start-doctor1.sh
+./start-specialist.sh
 ```
-CLI Java standalone per la validazione medica di primo livello.
+Selezionare opzione 1 per simulare un Chirurgo.
 
-**Terminale 4: Interfaccia Medico 2 (GOM 2)**
+**Terminale 4: Interfaccia Specialista (Oncologo)**
 ```bash
-./start-doctor2.sh
+./start-specialist.sh
 ```
-CLI Java standalone per la validazione medica di secondo livello.
+Selezionare opzione 2 per simulare un Oncologo.

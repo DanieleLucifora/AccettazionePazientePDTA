@@ -49,6 +49,14 @@ public class CamundaRestClient {
                 task.assignee = taskNode.path("assignee").asText(null);
                 task.processInstanceKey = taskNode.path("processInstanceKey").asText();
                 task.elementId = taskNode.path("elementId").asText();
+                
+                JsonNode candidateGroupsNode = taskNode.path("candidateGroups");
+                if (candidateGroupsNode.isArray()) {
+                    for (JsonNode group : candidateGroupsNode) {
+                        task.candidateGroups.add(group.asText());
+                    }
+                }
+                
                 tasks.add(task);
             }
         }
@@ -88,6 +96,36 @@ public class CamundaRestClient {
         LOG.info("Task {} completed with variables: {}", userTaskKey, variables.keySet());
     }
 
+    // Recupera le variabili di un task
+    public Map<String, Object> getTaskVariables(String userTaskKey) throws Exception {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+                
+        // Tentativo con search variables
+        String searchUrl = baseUrl + "/user-tasks/" + userTaskKey + "/variables/search";
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(new HashMap<>(), headers);
+        
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(searchUrl, request, String.class);
+            JsonNode root = objectMapper.readTree(response.getBody());
+            JsonNode items = root.path("items");
+            
+            Map<String, Object> variables = new HashMap<>();
+            if (items.isArray()) {
+                for (JsonNode varNode : items) {
+                    String name = varNode.path("name").asText();
+                    String value = varNode.path("value").asText(); 
+                    variables.put(name, value.replace("\"", "")); 
+                }
+            }
+            return variables;
+        } catch (Exception e) {
+            LOG.warn("Impossibile recuperare variabili per task {}: {}", userTaskKey, e.getMessage());
+            return new HashMap<>();
+        }
+    }
+
     // Verifica lo stato di un'istanza di processo
     public String getProcessInstanceState(String processInstanceKey) throws Exception {
         // Usa endpoint diretto invece di search per ottenere stato affidabile
@@ -122,6 +160,8 @@ public class CamundaRestClient {
         public String assignee;
         public String processInstanceKey;
         public String elementId;
+        public List<String> candidateGroups = new ArrayList<>();
+        public Map<String, Object> variables = new HashMap<>();
 
         @Override
         public String toString() {

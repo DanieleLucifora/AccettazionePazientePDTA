@@ -52,7 +52,7 @@
         "columns": null
       },
       "id": "Field_0wrobrc",
-      "key": "gom1Approved"
+      "key": "isApproved"
     },
     {
       "label": "Note",
@@ -62,11 +62,11 @@
         "columns": null
       },
       "id": "Field_0gyvig1",
-      "key": "gom1Note"
+      "key": "note"
     }
   ],
   "type": "default",
-  "id": "validazione-gom1-form",
+  "id": "validazione-specialista-form",
   "executionPlatform": "Camunda Cloud",
   "executionPlatformVersion": "8.8.0",
   "exporter": {
