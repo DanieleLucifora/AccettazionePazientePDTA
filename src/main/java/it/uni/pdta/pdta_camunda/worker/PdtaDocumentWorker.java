@@ -24,14 +24,14 @@ public class PdtaDocumentWorker {
         public String patientID;
         public String patientData;
         public String diagnosiCode;
-        public String gom1Signature;
-        public String gom2Signature;
+        public String chirurgoSignature;
+        public String oncologoSignature;
     }
 
     @JobWorker(type = "genera-pdta-doc")
     public Map<String, Object> generatePdtaDocument(@VariablesAsType PdtaDocumentVars vars) {
         LOG.info("Generazione documento PDTA per paziente={}, diagnosi={}", vars.patientID, vars.diagnosiCode);
-        LOG.info("Dati: {}, Firme: GOM1={}, GOM2={}", vars.patientData, vars.gom1Signature, vars.gom2Signature);
+        LOG.info("Dati: {}, Firme: CHIRURGO={}, ONCOLOGO={}", vars.patientData, vars.chirurgoSignature, vars.oncologoSignature);
 
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
         String documentId = String.format("PDTA-%s-%s", vars.patientID, timestamp);

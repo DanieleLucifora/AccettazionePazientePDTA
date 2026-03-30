@@ -147,21 +147,71 @@ public class SpecialistCli {
         String patientData = (String) task.variables.getOrDefault("patientData", "N/A");
         String diagnosiCode = (String) task.variables.getOrDefault("diagnosiCode", "N/A");
         String clinicalFileUrl = (String) task.variables.getOrDefault("clinicalFileUrl", "N/A");
+        // Mostra il referto relativo al ruolo corrente; fallback su examResult per compatibilita
+        String roleSpecificExamResult = "CHIRURGHI".equals(candidateGroup)
+            ? (String) task.variables.get("chirurgoExamResult")
+            : (String) task.variables.get("oncologoExamResult");
+        String examResult = roleSpecificExamResult;
+        if (examResult == null || examResult.isEmpty()) {
+            examResult = (String) task.variables.get("examResult");
+        }
 
         System.out.println("Paziente ID: " + patientID);
         System.out.println("Dati: " + patientData);
         System.out.println("Diagnosi: " + diagnosiCode);
         System.out.println("Cartella Clinica: " + clinicalFileUrl);
+        
+        if (examResult != null && !examResult.isEmpty()) {
+            System.out.println(colorize("REFERTO ESAMI: " + examResult, Color.YELLOW));
+        }
         System.out.println();
 
         System.out.println("Devi validare l'idoneità del paziente per il percorso chirurgico/oncologico.");
-        System.out.print("Approvare il paziente? [y/N]: ");
-        String approval = scanner.nextLine().trim();
+        System.out.println("Opzioni:");
+        System.out.println("1. APPROVA paziente");
+        System.out.println("2. RIFIUTA paziente");
+        System.out.println("3. RICHIEDI ESAMI diagnostici");
+        System.out.print("Scelta [1-3]: ");
         
-        boolean isApproved = approval.equalsIgnoreCase("y");
+        String choice = scanner.nextLine().trim();
+        
+        boolean isApproved = false;
+        boolean requiresExam = false;
+        String examType = "";
+        String note = "";
+
+        switch (choice) {
+            case "1":
+                isApproved = true;
+                requiresExam = false;
+                System.out.print("Inserisci note (opzionale): ");
+                note = scanner.nextLine().trim();
+                break;
+            case "2":
+                isApproved = false;
+                requiresExam = false;
+                System.out.print("Inserisci motivo rifiuto: ");
+                note = scanner.nextLine().trim();
+                break;
+            case "3":
+                isApproved = false; // Sospeso temporaneamente
+                requiresExam = true;
+                System.out.print("Inserisci tipo esame richiesto (es. TAC, Biopsia): ");
+                examType = scanner.nextLine().trim();
+                if (examType.isEmpty()) examType = "Approfondimento Generico";
+                System.out.print("Inserisci note per il laboratorio: ");
+                note = scanner.nextLine().trim();
+                break;
+            default:
+                System.out.println("Scelta non valida. Operazione annullata.");
+                return;
+        }
         
         // Conferma finale
-        System.out.println("Stai per " + (isApproved ? "APPROVARE" : "RIFIUTARE") + " il paziente.");
+        String actionInfo = requiresExam ? "RICHIEDERE ESAMI (" + examType + ")" : 
+                            (isApproved ? "APPROVARE" : "RIFIUTARE");
+                            
+        System.out.println("Stai per " + actionInfo + " il paziente.");
         System.out.print("Confermi operazione? [Y/n]: ");
         String confirm = scanner.nextLine().trim();
         
@@ -173,14 +223,19 @@ public class SpecialistCli {
         // Esegui task
         Map<String, Object> completeVariables = new HashMap<>();
         
-        // Usiamo la variabile generica "isApproved" come farebbe il form unico.
-        // Sarà il BPMN tramite Output Mapping a trasformarla in "chirurgoApproved" o "oncologoApproved"
         completeVariables.put("isApproved", isApproved);
+        completeVariables.put("requiresExam", requiresExam);
+        if (requiresExam) {
+            completeVariables.put("examType", examType);
+            completeVariables.put("requesterRole", candidateGroup); // usato da Gateway_1mpo32s per redirigere dopo gli esami
+            completeVariables.put("requesterName", currentUser.getNome() + " " + currentUser.getCognome());
+        }
+        completeVariables.put("note", note);
         
         completeVariables.put("validatorId", currentUser.getId());
         completeVariables.put("validatorRole", currentUser.getRuolo());
 
-        System.out.print("Invio esito a Camunda... ");
+        System.out.print("Invio esito... ");
         restClient.assignTask(task.userTaskKey, currentUser.getId());
         restClient.completeTask(task.userTaskKey, completeVariables);
         System.out.println(colorize("COMPLETATO", Color.GREEN));
@@ -188,7 +243,7 @@ public class SpecialistCli {
 
     private void printHeader() {
         System.out.println(colorize("╔════════════════════════════════════════════════╗", Color.CYAN));
-        System.out.println(colorize("║         PDTA CAMUNDA - SPECIALIST CLI          ║", Color.CYAN));
+        System.out.println(colorize("║              PDTA - SPECIALIST CLI             ║", Color.CYAN));
         System.out.println(colorize("╚════════════════════════════════════════════════╝", Color.CYAN));
         System.out.println();
     }

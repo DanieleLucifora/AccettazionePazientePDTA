@@ -8,8 +8,9 @@ Il progetto implementa un workflow dimostrativo focalizzato sulla fase di accett
 Il flusso operativo prevede:
 1.  **Registrazione:** Inserimento dati paziente tramite interfaccia Case Manager.
 2.  **Valutazione Automatica:** Verifica dei criteri di inclusione tramite regole DMN.
-3.  **Approvazione Specialistica:** Workflow parallelo di validazione da parte di Chirurgo e Oncologo.
-4.  **Finalizzazione:** Generazione automatica del documento PDTA con apposizione di firme digitali simulate.
+3.  **Valutazione Specialistica:** Workflow parallelo di validazione da parte di Chirurgo e Oncologo con tre esiti possibili: approvazione, rifiuto o richiesta di approfondimenti diagnostici.
+4.  **Esami Diagnostici:** Se richiesti da uno o entrambi gli specialisti, il laboratorio riceve i task e invia i referti che tornano allo specialista richiedente.
+5.  **Finalizzazione:** Generazione automatica del documento PDTA con apposizione di firme digitali simulate.
 
 ## Tecnologie Utilizzate
 *   **Linguaggio:** Java 21
@@ -20,9 +21,10 @@ Il flusso operativo prevede:
 ## Architettura del Sistema
 Il sistema è composto da:
 *   **PdtaCamundaApplication** (Spring Boot): Applicazione principale che esegue i worker Camunda in background per processare automaticamente i job (firma documenti, generazione PDTA)
-*   **CLI Standalone** : Due applicazioni Java pure senza Spring Boot per l'interazione utente:
+*   **CLI Standalone** : Tre applicazioni Java pure senza Spring Boot per l'interazione utente:
     *   `CaseManagerCli`: Interfaccia per inserimento pazienti e avvio processo
-    *   `SpecialistCli`: Interfaccia unificata per Chirurghi e Oncologi
+    *   `SpecialistCli`: Interfaccia unificata per Chirurghi e Oncologi (approva / rifiuta / richiedi esami)
+    *   `DiagnosticCli`: Interfaccia laboratorio per gestione richieste esami e invio referti
 *   **Camunda REST Client**: Utilizzato dalle CLI per interagire con i processi e i task tramite API REST v2
 
 ## Prerequisiti
@@ -69,3 +71,14 @@ Selezionare opzione 1 per simulare un Chirurgo.
 ./start-specialist.sh
 ```
 Selezionare opzione 2 per simulare un Oncologo.
+
+**Terminale 5: Interfaccia Diagnostica (Laboratorio)**
+```bash
+./start-diagnostic.sh
+```
+Avvia la CLI di laboratorio che monitora e completa i task "Esami Diagnostici".
+
+## Note Funzionali
+*   La CLI specialista invia variabili di processo per la gestione degli esami: `requiresExam`, `examType`, `requesterRole`, `requesterName`.
+*   I referti sono gestiti per ruolo (`chirurgoExamResult`, `oncologoExamResult`) così ogni specialista visualizza il referto corretto.
+*   La CLI diagnostica gestisce eventuali task stale con deduplica chiavi e fallback su errori 404 durante assegnazione/completamento.
