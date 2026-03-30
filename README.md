@@ -9,7 +9,7 @@ Il flusso operativo prevede:
 1.  **Registrazione:** Inserimento dati paziente tramite interfaccia Case Manager.
 2.  **Valutazione Automatica:** Verifica dei criteri di inclusione tramite regole DMN.
 3.  **Valutazione Specialistica:** Workflow parallelo di validazione da parte di Chirurgo e Oncologo con tre esiti possibili: approvazione, rifiuto o richiesta di approfondimenti diagnostici.
-4.  **Esami Diagnostici (opzionale):** Se richiesti da uno o entrambi gli specialisti, il laboratorio riceve i task e invia i referti che tornano allo specialista richiedente.
+4.  **Esami Diagnostici:** Se richiesti da uno o entrambi gli specialisti, il laboratorio riceve i task e invia i referti che tornano allo specialista richiedente.
 5.  **Finalizzazione:** Generazione automatica del documento PDTA con apposizione di firme digitali simulate.
 
 ## Tecnologie Utilizzate
