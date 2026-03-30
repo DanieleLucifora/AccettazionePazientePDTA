@@ -19,7 +19,7 @@
         "columns": null
       },
       "id": "Field_157vib7",
-      "key": "diagnosis",
+      "key": "diagnosiCode",
       "readonly": true
     },
     {
@@ -41,8 +41,31 @@
         "columns": null
       },
       "id": "Field_15dwx1z",
-      "key": "isElegible",
+      "key": "isEligible",
       "readonly": true
+    },
+    {
+      "label": "Richiesta Ulteriori Esami Diagnostici",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_0ypgmua",
+        "columns": null
+      },
+      "id": "Field_0svy80j",
+      "key": "requiresExam"
+    },
+    {
+      "label": "Tipo Esami",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_0ypgmua",
+        "columns": null
+      },
+      "id": "Field_0g85ewm",
+      "key": "examType",
+      "conditional": {
+        "hide": "=requiresExam = false"
+      }
     },
     {
       "label": "Accettato",

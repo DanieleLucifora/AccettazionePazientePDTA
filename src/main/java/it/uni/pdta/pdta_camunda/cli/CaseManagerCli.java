@@ -193,7 +193,7 @@ public class CaseManagerCli {
 
     private void printHeader() {
         System.out.println(colorize("╔════════════════════════════════════════════════╗", Color.CYAN));
-        System.out.println(colorize("║        PDTA CAMUNDA - CASE MANAGER CLI         ║", Color.CYAN));
+        System.out.println(colorize("║              PDTA - CASE MANAGER CLI           ║", Color.CYAN));
         System.out.println(colorize("╚════════════════════════════════════════════════╝", Color.CYAN));
         System.out.println();
     }

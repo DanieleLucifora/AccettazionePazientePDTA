@@ -1,0 +1,34 @@
+{
+  "components": [
+    {
+      "label": "Tipo Esame",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_093boe9",
+        "columns": null
+      },
+      "id": "Field_1o4ss0h",
+      "key": "examType",
+      "readonly": true
+    },
+    {
+      "label": "Referto",
+      "type": "textarea",
+      "layout": {
+        "row": "Row_12petfw",
+        "columns": null
+      },
+      "id": "Field_0mw9z5s",
+      "key": "examResult"
+    }
+  ],
+  "type": "default",
+  "id": "esami-diagnostici-form",
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.8.0",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.41.0"
+  },
+  "schemaVersion": 19
+}
