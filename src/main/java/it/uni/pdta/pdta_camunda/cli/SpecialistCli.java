@@ -5,9 +5,11 @@ import it.uni.pdta.pdta_camunda.model.Oncologo;
 import it.uni.pdta.pdta_camunda.model.OperatoreSanitario;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 
 /**
  * CLI Specialista (Chirurgo / Oncologo)
@@ -227,8 +229,8 @@ public class SpecialistCli {
         completeVariables.put("requiresExam", requiresExam);
         if (requiresExam) {
             completeVariables.put("examType", examType);
-            completeVariables.put("requesterRole", candidateGroup); // usato da Gateway_1mpo32s per redirigere dopo gli esami
             completeVariables.put("requesterName", currentUser.getNome() + " " + currentUser.getCognome());
+            completeVariables.put("examQueue", enqueueRequester(task.variables.get("examQueue"), candidateGroup));
         }
         completeVariables.put("note", note);
         
@@ -239,6 +241,26 @@ public class SpecialistCli {
         restClient.assignTask(task.userTaskKey, currentUser.getId());
         restClient.completeTask(task.userTaskKey, completeVariables);
         System.out.println(colorize("COMPLETATO", Color.GREEN));
+    }
+
+    private String enqueueRequester(Object currentQueue, String roleToAdd) {
+        Set<String> roles = new LinkedHashSet<>();
+
+        if (currentQueue != null) {
+            String queueText = currentQueue.toString().trim();
+            if (!queueText.isEmpty()) {
+                String[] tokens = queueText.split(",");
+                for (String token : tokens) {
+                    String normalized = token.trim();
+                    if (!normalized.isEmpty()) {
+                        roles.add(normalized);
+                    }
+                }
+            }
+        }
+
+        roles.add(roleToAdd);
+        return String.join(",", roles);
     }
 
     private void printHeader() {

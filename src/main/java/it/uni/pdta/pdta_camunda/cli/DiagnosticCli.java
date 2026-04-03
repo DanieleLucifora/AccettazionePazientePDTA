@@ -122,21 +122,19 @@ public class DiagnosticCli {
         System.out.println();
 
         System.out.println(colorize("=== RICHIESTA ESAME ===", Color.BLUE));
-        
-        // Coda richieste: priorita ONCOLOGI poi CHIRURGHI
+
         boolean oncologoPending = asBoolean(task.variables.get("oncologoRequiresExam"));
         boolean chirurgoPending = asBoolean(task.variables.get("chirurgoRequiresExam"));
 
-        String requesterRole;
+        String examQueue = normalizeQueue(task.variables.get("examQueue"));
+        String requesterRole = pickNextRequester(examQueue, oncologoPending, chirurgoPending);
         String requesterName;
         String examType;
 
-        if (oncologoPending) {
-            requesterRole = "ONCOLOGI";
+        if ("ONCOLOGI".equals(requesterRole)) {
             requesterName = (String) task.variables.getOrDefault("oncologoRequesterName", "N/A");
             examType = (String) task.variables.getOrDefault("oncologoExamType", "Generico");
-        } else if (chirurgoPending) {
-            requesterRole = "CHIRURGHI";
+        } else if ("CHIRURGHI".equals(requesterRole)) {
             requesterName = (String) task.variables.getOrDefault("chirurgoRequesterName", "N/A");
             examType = (String) task.variables.getOrDefault("chirurgoExamType", "Generico");
         } else {
@@ -179,6 +177,7 @@ public class DiagnosticCli {
         Map<String, Object> completeVariables = new HashMap<>();
         completeVariables.put("examResult", examResult);
         completeVariables.put("requesterRole", requesterRole);
+        completeVariables.put("examQueue", dequeueRequester(examQueue, requesterRole));
 
         if ("ONCOLOGI".equals(requesterRole)) {
             completeVariables.put("oncologoRequiresExam", false);
@@ -208,6 +207,86 @@ public class DiagnosticCli {
             return Boolean.parseBoolean(s);
         }
         return false;
+    }
+
+    private String pickNextRequester(String queue, boolean oncologoPending, boolean chirurgoPending) {
+        if (queue != null && !queue.isEmpty()) {
+            String[] tokens = queue.split(",");
+            for (String token : tokens) {
+                String role = token.trim();
+                if ("ONCOLOGI".equals(role) && oncologoPending) {
+                    return role;
+                }
+                if ("CHIRURGHI".equals(role) && chirurgoPending) {
+                    return role;
+                }
+            }
+        }
+
+        if (oncologoPending) {
+            return "ONCOLOGI";
+        }
+        if (chirurgoPending) {
+            return "CHIRURGHI";
+        }
+        return "";
+    }
+
+    private String dequeueRequester(String queue, String requesterRole) {
+        if (queue == null || queue.isEmpty()) {
+            return "";
+        }
+
+        String[] tokens = queue.split(",");
+        StringBuilder builder = new StringBuilder();
+        boolean removed = false;
+
+        for (String token : tokens) {
+            String role = token.trim();
+            if (role.isEmpty()) {
+                continue;
+            }
+            if (!removed && role.equals(requesterRole)) {
+                removed = true;
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(',');
+            }
+            builder.append(role);
+        }
+
+        return builder.toString();
+    }
+
+    private String normalizeQueue(Object value) {
+        if (value == null) {
+            return "";
+        }
+
+        String queue = value.toString().trim();
+        if (queue.isEmpty()) {
+            return "";
+        }
+
+        String[] tokens = queue.split(",");
+        StringBuilder builder = new StringBuilder();
+
+        for (String token : tokens) {
+            String role = token.trim();
+            if (!"ONCOLOGI".equals(role) && !"CHIRURGHI".equals(role)) {
+                continue;
+            }
+            if (builder.indexOf(role) >= 0) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(',');
+            }
+            builder.append(role);
+        }
+
+        return builder.toString();
     }
 
     private void printHeader() {
