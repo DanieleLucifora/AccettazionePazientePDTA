@@ -30,7 +30,7 @@ public class DiagnosticCli {
     private final OperatoreSanitario currentUser;
 
     public DiagnosticCli() {
-        this.restClient = new CamundaRestClient("http://localhost:8080/v2");
+        this.restClient = new CamundaRestClient(CliEndpoints.restV2BaseUrl());
         this.scanner = new Scanner(System.in);
         this.handledTaskKeys = new HashSet<>();
         // Simuliamo un utente generico di laboratorio, usando la classe concreta

@@ -1,7 +1,7 @@
 package it.uni.pdta.pdta_camunda.worker;
 
-import io.camunda.zeebe.spring.client.annotation.JobWorker;
-import io.camunda.zeebe.spring.client.annotation.VariablesAsType;
+import io.camunda.client.annotation.JobWorker;
+import io.camunda.client.annotation.VariablesAsType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

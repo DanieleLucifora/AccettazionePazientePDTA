@@ -28,7 +28,7 @@ public class SpecialistCli {
     private String candidateGroup;
 
     public SpecialistCli() {
-        this.restClient = new CamundaRestClient("http://localhost:8080/v2");
+        this.restClient = new CamundaRestClient(CliEndpoints.restV2BaseUrl());
         this.scanner = new Scanner(System.in);
     }
 

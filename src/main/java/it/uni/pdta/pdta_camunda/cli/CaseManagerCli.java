@@ -31,10 +31,10 @@ public class CaseManagerCli {
     public CaseManagerCli() {
         // Crea CamundaClient manualmente per CLI
         this.camundaClient = CamundaClient.newClientBuilder()
-                .grpcAddress(URI.create("http://127.0.0.1:26500"))
-                .restAddress(URI.create("http://localhost:8080"))
+            .grpcAddress(URI.create(CliEndpoints.grpcAddress()))
+            .restAddress(URI.create(CliEndpoints.restAddress()))
                 .build();
-        this.restClient = new CamundaRestClient("http://localhost:8080/v2");
+        this.restClient = new CamundaRestClient(CliEndpoints.restV2BaseUrl());
         
         // Login simulato
         this.currentUser = new CaseManager("CM001", "Giulia", "Verdi");
@@ -155,7 +155,7 @@ public class CaseManagerCli {
 
                 if (task == null) {
                     System.err.println("✗ Task 'Raccolta Dati Accesso' non trovato");
-                    System.err.println("Verifica su Operate: http://localhost:8080/operate");
+                    System.err.println("Verifica su Operate: " + CliEndpoints.operateUrl());
                     continue;
                 }
 
