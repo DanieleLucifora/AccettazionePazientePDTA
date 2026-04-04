@@ -28,6 +28,46 @@ public class CamundaRestClient {
 
     // Cerca user task con filtri
     public List<UserTask> searchTasks(Map<String, Object> filter) throws Exception {
+        List<UserTask> tasks = new ArrayList<>();
+        if (filter != null && filter.containsKey("page")) {
+            return searchTaskPage(filter).tasks;
+        }
+
+        int offset = 0;
+        int pageSize = 100;
+
+        while (true) {
+            Map<String, Object> pagedFilter = new HashMap<>();
+            if (filter != null) {
+                pagedFilter.putAll(filter);
+            }
+
+            Map<String, Object> page = new HashMap<>();
+            page.put("from", offset);
+            page.put("limit", pageSize);
+            pagedFilter.put("page", page);
+
+            SearchPage searchPage = searchTaskPage(pagedFilter);
+            if (searchPage.tasks.isEmpty()) {
+                break;
+            }
+
+            tasks.addAll(searchPage.tasks);
+            offset += searchPage.tasks.size();
+
+            if (searchPage.totalItems != null && offset >= searchPage.totalItems) {
+                break;
+            }
+
+            if (searchPage.tasks.size() < pageSize) {
+                break;
+            }
+        }
+
+        return tasks;
+    }
+
+    private SearchPage searchTaskPage(Map<String, Object> filter) throws Exception {
         String url = baseUrl + "/user-tasks/search";
 
         HttpHeaders headers = new HttpHeaders();
@@ -49,19 +89,21 @@ public class CamundaRestClient {
                 task.assignee = taskNode.path("assignee").asText(null);
                 task.processInstanceKey = taskNode.path("processInstanceKey").asText();
                 task.elementId = taskNode.path("elementId").asText();
-                
+
                 JsonNode candidateGroupsNode = taskNode.path("candidateGroups");
                 if (candidateGroupsNode.isArray()) {
                     for (JsonNode group : candidateGroupsNode) {
                         task.candidateGroups.add(group.asText());
                     }
                 }
-                
+
                 tasks.add(task);
             }
         }
 
-        return tasks;
+        JsonNode pageNode = root.path("page");
+        Integer totalItems = pageNode.has("totalItems") ? pageNode.path("totalItems").asInt() : null;
+        return new SearchPage(tasks, totalItems);
     }
 
     // Assegna un task a un utente
@@ -168,5 +210,8 @@ public class CamundaRestClient {
             return String.format("UserTask[key=%s, name=%s, state=%s, assignee=%s]",
                 userTaskKey, name, state, assignee);
         }
+    }
+
+    private record SearchPage(List<UserTask> tasks, Integer totalItems) {
     }
 }

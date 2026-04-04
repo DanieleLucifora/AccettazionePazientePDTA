@@ -1,6 +1,25 @@
 server:
   port: 8081
 
+spring:
+  datasource:
+    # DB condiviso su file locale, visibile da app principale + CLI separate
+    url: jdbc:h2:file:./data/pdta;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
 # Configurazione Camunda Client per Self-Managed (locale)
 # Usa il nuovo namespace 'camunda' invece del deprecato 'zeebe'
 camunda:
@@ -10,4 +29,137 @@ camunda:
       method: none  # Nessuna autenticazione per ambiente locale
     grpc-address: http://127.0.0.1:26500  # Indirizzo gateway Zeebe per gRPC
     rest-address: http://127.0.0.1:8080   # Indirizzo API REST Camunda
+
+# Configurazione scheduling diagnostico
+pdta:
+  scheduling:
+    work-day-start: "08:00"
+    work-day-end: "18:00"
+    slot-buffer-minutes: 5
+    booking-retry-attempts: 3
+    protocols:
+      # --- TAC ---
+      - exam-type: TAC
+        body-part: TESTA
+        display-name: "TAC Testa"
+        setup-minutes: 5
+        exam-minutes: 20
+        teardown-minutes: 5
+        requires-contrast: false
+        requires-fasting: false
+        effective-from: "2024-01-01"
+
+      - exam-type: TAC
+        body-part: TORACE
+        display-name: "TAC Torace"
+        setup-minutes: 5
+        exam-minutes: 25
+        teardown-minutes: 5
+        requires-contrast: false
+        requires-fasting: false
+        effective-from: "2024-01-01"
+
+      - exam-type: TAC
+        body-part: ADDOME
+        display-name: "TAC Addome"
+        setup-minutes: 5
+        exam-minutes: 25
+        teardown-minutes: 5
+        requires-contrast: true
+        requires-fasting: true
+        effective-from: "2024-01-01"
+        notes: "Digiuno 4h, mdc e.v."
+
+      - exam-type: TAC
+        body-part: TOTAL_BODY
+        display-name: "TAC Total Body"
+        setup-minutes: 5
+        exam-minutes: 40
+        teardown-minutes: 10
+        requires-contrast: true
+        requires-fasting: true
+        effective-from: "2024-01-01"
+        notes: "Digiuno 4h, mdc e.v."
+
+      # --- PET ---
+      - exam-type: PET
+        body-part: TOTAL_BODY
+        display-name: "PET-TC Total Body"
+        setup-minutes: 60
+        exam-minutes: 30
+        teardown-minutes: 10
+        requires-contrast: false
+        requires-fasting: true
+        effective-from: "2024-01-01"
+        notes: "Digiuno 6h, attesa 60min post-iniezione FDG"
+
+      # --- RMN ---
+      - exam-type: RMN
+        body-part: TESTA
+        display-name: "RMN Encefalo"
+        setup-minutes: 5
+        exam-minutes: 45
+        teardown-minutes: 5
+        requires-contrast: false
+        requires-fasting: false
+        effective-from: "2024-01-01"
+
+      - exam-type: RMN
+        body-part: RACHIDE
+        display-name: "RMN Rachide"
+        setup-minutes: 5
+        exam-minutes: 50
+        teardown-minutes: 5
+        requires-contrast: false
+        requires-fasting: false
+        effective-from: "2024-01-01"
+
+      - exam-type: RMN
+        body-part: TORACE
+        display-name: "RMN Torace"
+        setup-minutes: 5
+        exam-minutes: 50
+        teardown-minutes: 5
+        requires-contrast: false
+        requires-fasting: false
+        effective-from: "2024-01-01"
+
+      # --- ECO ---
+      - exam-type: ECO
+        body-part: ADDOME
+        display-name: "Ecografia Addome"
+        setup-minutes: 5
+        exam-minutes: 20
+        teardown-minutes: 5
+        requires-contrast: false
+        requires-fasting: true
+        effective-from: "2024-01-01"
+        notes: "Digiuno 6h"
+
+      # --- BIOPSIA ---
+      - exam-type: BIOPSIA
+        body-part: TORACE
+        display-name: "Biopsia TC-guidata Torace"
+        setup-minutes: 15
+        exam-minutes: 30
+        teardown-minutes: 30
+        requires-contrast: false
+        requires-fasting: true
+        effective-from: "2024-01-01"
+        notes: "Digiuno 4h, monitoraggio post-procedura 30min"
+
+      # --- ENDOSCOPIA ---
+      - exam-type: ENDOSCOPIA
+        body-part: ADDOME
+        display-name: "Broncoscopia"
+        setup-minutes: 15
+        exam-minutes: 30
+        teardown-minutes: 30
+        requires-contrast: false
+        requires-fasting: true
+        effective-from: "2024-01-01"
+        notes: "Digiuno 6h, sedazione lieve"
+  kpi:
+    enabled: true
+    daily-cron: "0 10 0 * * *"
     # I worker si configurano tramite annotation @JobWorker nei bean Spring

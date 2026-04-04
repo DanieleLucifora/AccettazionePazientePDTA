@@ -160,6 +160,14 @@
           <zeebe:output source="=requiresExam" target="chirurgoRequiresExam" />
           <zeebe:output source="=examType" target="chirurgoExamType" />
           <zeebe:output source="=requesterName" target="chirurgoRequesterName" />
+          <zeebe:output source="=bodyPart" target="chirurgoBodyPart" />
+          <zeebe:output source="=schedulingPreference" target="chirurgoSchedulingPreference" />
+          <zeebe:output source="=preferredExamDate" target="chirurgoPreferredExamDate" />
+          <zeebe:output source="=specialistSelectedSlotStart" target="chirurgoSelectedSlotStart" />
+          <zeebe:output source="=specialistSelectedSlotEnd" target="chirurgoSelectedSlotEnd" />
+          <zeebe:output source="=specialistSelectedResourceId" target="chirurgoSelectedResourceId" />
+          <zeebe:output source="=specialistSelectedProtocolId" target="chirurgoSelectedProtocolId" />
+          <zeebe:output source="=specialistSelectedResourceCode" target="chirurgoSelectedResourceCode" />
         </zeebe:ioMapping>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_18qxf7g</bpmn:incoming>
@@ -176,6 +184,14 @@
           <zeebe:output source="=requiresExam" target="oncologoRequiresExam" />
           <zeebe:output source="=examType" target="oncologoExamType" />
           <zeebe:output source="=requesterName" target="oncologoRequesterName" />
+          <zeebe:output source="=bodyPart" target="oncologoBodyPart" />
+          <zeebe:output source="=schedulingPreference" target="oncologoSchedulingPreference" />
+          <zeebe:output source="=preferredExamDate" target="oncologoPreferredExamDate" />
+          <zeebe:output source="=specialistSelectedSlotStart" target="oncologoSelectedSlotStart" />
+          <zeebe:output source="=specialistSelectedSlotEnd" target="oncologoSelectedSlotEnd" />
+          <zeebe:output source="=specialistSelectedResourceId" target="oncologoSelectedResourceId" />
+          <zeebe:output source="=specialistSelectedProtocolId" target="oncologoSelectedProtocolId" />
+          <zeebe:output source="=specialistSelectedResourceCode" target="oncologoSelectedResourceCode" />
         </zeebe:ioMapping>
         <zeebe:assignmentDefinition candidateGroups="ONCOLOGI" />
       </bpmn:extensionElements>
