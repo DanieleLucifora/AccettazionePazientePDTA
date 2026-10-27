@@ -86,18 +86,29 @@ public class SpecialistTaskService {
         if (!decision.isValidDecision()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esito o motivazione non validi.");
         }
+        requireOwnedTask(taskKey, role, operatorId);
+        return completeOwnedTask(taskKey, operatorId, decision.variables(operatorId, validatorRole));
+    }
+
+    CamundaRestClient.UserTask requireOwnedTask(String taskKey, SpecialistRole role, String operatorId)
+            throws Exception {
         CamundaRestClient.UserTask task = requireDecisionTask(taskKey, role);
         if (!operatorId.equals(task.assignee)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Prendi in carico l'attivita' e attendi la conferma prima di inviare l'esito.");
         }
+        return task;
+    }
+
+    TaskActionResult completeOwnedTask(String taskKey, String operatorId, Map<String, Object> variables)
+            throws Exception {
         try {
             restClient.claimTask(taskKey, operatorId);
-            restClient.completeTask(taskKey, decision.variables(operatorId, validatorRole));
+            restClient.completeTask(taskKey, variables);
         } catch (HttpClientErrorException exception) {
             throw commandFailure(exception);
         }
-        LOG.info("Valutazione {} inviata per task {} da {}", decision.outcome(), taskKey, operatorId);
+        LOG.info("Valutazione inviata per task {} da {}", taskKey, operatorId);
         return new TaskActionResult(taskKey, "COMPLETED", operatorId);
     }
 

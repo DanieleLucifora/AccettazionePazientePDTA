@@ -5,6 +5,8 @@ import io.camunda.client.api.response.ProcessInstanceEvent;
 import it.uni.pdta.pdta_camunda.registration.RegistrationRequest;
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistDecision;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamService;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -93,5 +96,46 @@ class PortalHttpTests {
                 new SpecialistDecision(SpecialistDecision.Outcome.APPROVE, ""), String.class).getStatusCode())
                 .isEqualTo(HttpStatus.CONFLICT);
         verify(restClient, times(1)).completeTask(eq("43"), anyMap());
+    }
+
+    @Test
+    void realHttpServerWiresCatalogCalendarAndExamRequestWithoutBookingSlot() throws Exception {
+        var options = http.getForEntity("/api/exams/options",
+                DiagnosticExamService.ExamOptions.class);
+        assertThat(options.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(options.getBody().combinations()).anyMatch(option -> option.examType().name().equals("TAC")
+                && option.bodyPart().name().equals("TORACE"));
+        String tomorrow = LocalDate.now().plusDays(1).toString();
+        var slots = http.getForEntity("/api/exams/slots?examType=TAC&bodyPart=TORACE&day=" + tomorrow,
+                JsonNode.class);
+        assertThat(slots.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(slots.getBody().isArray()).isTrue();
+        assertThat(slots.getBody().size()).isPositive();
+        var slot = slots.getBody().get(0);
+        var task = new CamundaRestClient.UserTask();
+        task.userTaskKey = "44";
+        task.processInstanceKey = "100";
+        task.state = "CREATED";
+        task.elementId = "Activity_0vww6jw";
+        task.assignee = "ON001";
+        task.candidateGroups = List.of("ONCOLOGI");
+        when(restClient.searchTasks(Map.of("filter", Map.of("userTaskKey", "44")))).thenReturn(List.of(task));
+        when(restClient.getTypedTaskVariables("44")).thenReturn(Map.of("examQueue", "CHIRURGHI"));
+        var result = http.postForEntity("/api/tasks/44/exam-request?role=ONCOLOGI", Map.of(
+                "examType", "TAC", "bodyPart", "TORACE", "schedulingPreference", "MANUAL_CALENDAR",
+                "resourceId", slot.get("resourceId").asLong(), "startTime", slot.get("startTime").asText(),
+                "note", "Approfondimento dimostrativo"), Map.class);
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(result.getBody()).containsEntry("status", "COMPLETED");
+        verify(restClient).claimTask("44", "ON001");
+        verify(restClient).completeTask(eq("44"), argThat(vars -> Boolean.TRUE.equals(vars.get("requiresExam"))
+                && "CHIRURGHI,ONCOLOGI".equals(vars.get("examQueue"))
+                && "ON001".equals(vars.get("oncologoRequesterId"))
+                && slot.get("resourceCode").asText().equals(vars.get("oncologoSelectedResourceCode"))));
+        task.state = "COMPLETED";
+        var replay = http.postForEntity("/api/tasks/44/exam-request?role=ONCOLOGI", Map.of(
+                "examType", "TAC", "bodyPart", "TORACE", "schedulingPreference", "AUTO_FIRST_AVAILABLE"), String.class);
+        assertThat(replay.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        verify(restClient, times(1)).completeTask(eq("44"), anyMap());
     }
 }

@@ -43,6 +43,43 @@ export interface TaskActionResult {
   assignee: string;
 }
 
+export interface ExamOption { examType: string; bodyPart: string }
+export interface ExamOptions { combinations: ExamOption[]; fromDate: string; toDate: string }
+export interface ExamSlot {
+  resourceId: number;
+  resourceCode: string;
+  resourceName: string;
+  protocolId: number;
+  examDisplayName: string;
+  totalSlotMinutes: number;
+  requiresContrast: boolean;
+  requiresFasting: boolean;
+  notes: string | null;
+  startTime: string;
+  endTime: string;
+}
+export interface DiagnosticExamRequest extends ExamOption {
+  schedulingPreference: 'AUTO_FIRST_AVAILABLE' | 'MANUAL_CALENDAR';
+  resourceId: number | null;
+  startTime: string | null;
+  note: string;
+}
+
+export function getExamOptions(signal: AbortSignal): Promise<ExamOptions> {
+  return request('/exams/options', { signal });
+}
+
+export function getExamSlots(option: ExamOption, day: string, signal: AbortSignal): Promise<ExamSlot[]> {
+  const params = new URLSearchParams({ ...option, day });
+  return request(`/exams/slots?${params}`, { signal });
+}
+
+export function requestExam(taskKey: string, role: SpecialistRole, exam: DiagnosticExamRequest): Promise<TaskActionResult> {
+  return request(`/tasks/${encodeURIComponent(taskKey)}/exam-request?role=${role}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(exam),
+  });
+}
+
 export function claimTask(taskKey: string, role: SpecialistRole): Promise<TaskActionResult> {
   return request(`/tasks/${encodeURIComponent(taskKey)}/claim?role=${role}`, { method: 'POST' });
 }

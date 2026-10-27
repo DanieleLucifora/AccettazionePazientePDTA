@@ -2,6 +2,7 @@ package it.uni.pdta.pdta_camunda.cli;
 
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistDecision;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamRequest;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
 import it.uni.pdta.pdta_camunda.model.Chirurgo;
 import it.uni.pdta.pdta_camunda.model.Oncologo;
@@ -18,11 +19,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.Set;
 
 /**
  * CLI Specialista (Chirurgo / Oncologo)
@@ -323,92 +322,23 @@ public class SpecialistCli {
             return;
         }
 
-        // Esegui task
-        Map<String, Object> completeVariables = new HashMap<>();
-        
-        completeVariables.put("isApproved", isApproved);
-        completeVariables.put("requiresExam", requiresExam);
-        if (requiresExam) {
-            completeVariables.put("examType", examType);
-            completeVariables.put("bodyPart", bodyPart);
-            completeVariables.put("schedulingPreference", schedulingPreference);
-            if (!preferredExamDate.isBlank()) {
-                completeVariables.put("preferredExamDate", preferredExamDate);
-            }
-            if (selectedManualSlot != null) {
-                completeVariables.put("specialistSelectedSlotStart", selectedManualSlot.getStartTime().toString());
-                completeVariables.put("specialistSelectedSlotEnd", selectedManualSlot.getEndTime().toString());
-                completeVariables.put("specialistSelectedResourceId", String.valueOf(selectedManualSlot.getResourceId()));
-                completeVariables.put("specialistSelectedProtocolId", String.valueOf(selectedManualSlot.getProtocolId()));
-                completeVariables.put("specialistSelectedResourceCode", selectedManualSlot.getResourceCode());
-            }
-            completeVariables.put("requesterName", currentUser.getNome() + " " + currentUser.getCognome());
-            completeVariables.put("requesterId", currentUser.getId());
-            completeVariables.put("examQueue", enqueueRequester(task.variables.get("examQueue"), candidateGroup));
-
-            if (ROLE_ONCOLOGI.equals(candidateGroup)) {
-                completeVariables.put("oncologoExamType", examType);
-                completeVariables.put("oncologoBodyPart", bodyPart);
-                completeVariables.put("oncologoRequesterName", currentUser.getNome() + " " + currentUser.getCognome());
-                completeVariables.put("oncologoRequesterId", currentUser.getId());
-                completeVariables.put("oncologoSchedulingPreference", schedulingPreference);
-                if (!preferredExamDate.isBlank()) {
-                    completeVariables.put("oncologoPreferredExamDate", preferredExamDate);
-                }
-                if (selectedManualSlot != null) {
-                    completeVariables.put("oncologoSelectedSlotStart", selectedManualSlot.getStartTime().toString());
-                    completeVariables.put("oncologoSelectedSlotEnd", selectedManualSlot.getEndTime().toString());
-                    completeVariables.put("oncologoSelectedResourceId", String.valueOf(selectedManualSlot.getResourceId()));
-                    completeVariables.put("oncologoSelectedProtocolId", String.valueOf(selectedManualSlot.getProtocolId()));
-                    completeVariables.put("oncologoSelectedResourceCode", selectedManualSlot.getResourceCode());
-                }
-            } else if (ROLE_CHIRURGHI.equals(candidateGroup)) {
-                completeVariables.put("chirurgoExamType", examType);
-                completeVariables.put("chirurgoBodyPart", bodyPart);
-                completeVariables.put("chirurgoRequesterName", currentUser.getNome() + " " + currentUser.getCognome());
-                completeVariables.put("chirurgoRequesterId", currentUser.getId());
-                completeVariables.put("chirurgoSchedulingPreference", schedulingPreference);
-                if (!preferredExamDate.isBlank()) {
-                    completeVariables.put("chirurgoPreferredExamDate", preferredExamDate);
-                }
-                if (selectedManualSlot != null) {
-                    completeVariables.put("chirurgoSelectedSlotStart", selectedManualSlot.getStartTime().toString());
-                    completeVariables.put("chirurgoSelectedSlotEnd", selectedManualSlot.getEndTime().toString());
-                    completeVariables.put("chirurgoSelectedResourceId", String.valueOf(selectedManualSlot.getResourceId()));
-                    completeVariables.put("chirurgoSelectedProtocolId", String.valueOf(selectedManualSlot.getProtocolId()));
-                    completeVariables.put("chirurgoSelectedResourceCode", selectedManualSlot.getResourceCode());
-                }
-            }
+        var examRequest = new DiagnosticExamRequest(ExamType.valueOf(examType), BodyPart.valueOf(bodyPart),
+                DiagnosticExamRequest.SchedulingPreference.valueOf(schedulingPreference),
+                selectedManualSlot == null ? null : selectedManualSlot.getResourceId(),
+                selectedManualSlot == null ? null : selectedManualSlot.getStartTime(), note);
+        if (!examRequest.isValidRequest()) {
+            System.err.println("Richiesta non valida: controllare la fascia e il limite di 2000 caratteri delle note.");
+            return;
         }
-        completeVariables.put("note", note);
-        
-        completeVariables.put("validatorId", currentUser.getId());
-        completeVariables.put("validatorRole", currentUser.getRuolo());
+        Map<String, Object> completeVariables = examRequest.variables(
+                SpecialistTaskService.SpecialistRole.valueOf(candidateGroup), currentUser.getId(),
+                currentUser.getNome() + " " + currentUser.getCognome(), currentUser.getRuolo(),
+                task.variables.get("examQueue"), selectedManualSlot);
 
         System.out.print("Invio esito... ");
         restClient.assignTask(task.userTaskKey, currentUser.getId());
         restClient.completeTask(task.userTaskKey, completeVariables);
         System.out.println(colorize("COMPLETATO", Color.GREEN));
-    }
-
-    private String enqueueRequester(Object currentQueue, String roleToAdd) {
-        Set<String> roles = new LinkedHashSet<>();
-
-        if (currentQueue != null) {
-            String queueText = currentQueue.toString().trim();
-            if (!queueText.isEmpty()) {
-                String[] tokens = queueText.split(",");
-                for (String token : tokens) {
-                    String normalized = token.trim();
-                    if (!normalized.isEmpty()) {
-                        roles.add(normalized);
-                    }
-                }
-            }
-        }
-
-        roles.add(roleToAdd);
-        return String.join(",", roles);
     }
 
     private ExamType chooseExamType() {

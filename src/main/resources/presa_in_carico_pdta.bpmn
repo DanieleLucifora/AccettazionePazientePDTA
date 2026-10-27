@@ -160,6 +160,8 @@
           <zeebe:output source="=requiresExam" target="chirurgoRequiresExam" />
           <zeebe:output source="=examType" target="chirurgoExamType" />
           <zeebe:output source="=requesterName" target="chirurgoRequesterName" />
+          <zeebe:output source="=requesterId" target="chirurgoRequesterId" />
+          <zeebe:output source="=examQueue" target="examQueue" />
           <zeebe:output source="=bodyPart" target="chirurgoBodyPart" />
           <zeebe:output source="=schedulingPreference" target="chirurgoSchedulingPreference" />
           <zeebe:output source="=preferredExamDate" target="chirurgoPreferredExamDate" />
@@ -184,6 +186,8 @@
           <zeebe:output source="=requiresExam" target="oncologoRequiresExam" />
           <zeebe:output source="=examType" target="oncologoExamType" />
           <zeebe:output source="=requesterName" target="oncologoRequesterName" />
+          <zeebe:output source="=requesterId" target="oncologoRequesterId" />
+          <zeebe:output source="=examQueue" target="examQueue" />
           <zeebe:output source="=bodyPart" target="oncologoBodyPart" />
           <zeebe:output source="=schedulingPreference" target="oncologoSchedulingPreference" />
           <zeebe:output source="=preferredExamDate" target="oncologoPreferredExamDate" />

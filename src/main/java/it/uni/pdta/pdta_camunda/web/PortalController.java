@@ -5,6 +5,11 @@ import it.uni.pdta.pdta_camunda.registration.PatientRegistrationService.Registra
 import it.uni.pdta.pdta_camunda.registration.RegistrationRequest;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistDecision;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamRequest;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamService;
+import it.uni.pdta.pdta_camunda.scheduling.domain.enums.ExamType;
+import it.uni.pdta.pdta_camunda.scheduling.domain.enums.BodyPart;
+import it.uni.pdta.pdta_camunda.scheduling.service.dto.SlotSuggestion;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService.SpecialistRole;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
@@ -13,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api")
@@ -21,10 +27,13 @@ public class PortalController {
     private static final String DEMO_CASE_MANAGER = "CM001";
     private final PatientRegistrationService registrationService;
     private final SpecialistTaskService taskService;
+    private final DiagnosticExamService exams;
 
-    public PortalController(PatientRegistrationService registrationService, SpecialistTaskService taskService) {
+    public PortalController(PatientRegistrationService registrationService, SpecialistTaskService taskService,
+            DiagnosticExamService exams) {
         this.registrationService = registrationService;
         this.taskService = taskService;
+        this.exams = exams;
     }
 
     @PostMapping("/registrations")
@@ -63,5 +72,23 @@ public class PortalController {
             @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key,
             @RequestParam SpecialistRole role, @Valid @RequestBody SpecialistDecision decision) throws Exception {
         return taskService.decide(key, role, role.operatorId(), role.validatorRole(), decision);
+    }
+
+    @GetMapping("/exams/options")
+    public DiagnosticExamService.ExamOptions examOptions() {
+        return exams.options();
+    }
+
+    @GetMapping("/exams/slots")
+    public List<SlotSuggestion> examSlots(@RequestParam ExamType examType, @RequestParam BodyPart bodyPart,
+            @RequestParam LocalDate day) {
+        return exams.slots(examType, bodyPart, day);
+    }
+
+    @PostMapping("/tasks/{key}/exam-request")
+    public SpecialistTaskService.TaskActionResult requestExam(
+            @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key,
+            @RequestParam SpecialistRole role, @Valid @RequestBody DiagnosticExamRequest request) throws Exception {
+        return exams.request(key, role, request);
     }
 }

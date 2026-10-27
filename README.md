@@ -44,6 +44,8 @@ Disponibili:
   referto e note pertinenti al gruppo selezionato;
 * presa in carico senza sovrascrivere l'assegnazione ad altri operatori;
 * approvazione o rifiuto motivato con riepilogo e conferma esplicita dell'esito;
+* richiesta di esami con protocolli attivi, primo slot automatico oppure calendario
+  manuale dei prossimi 10 giorni, riepilogo e conferma;
 * errori espliciti e recupero della chiave di una registrazione pendente nella stessa sessione del browser.
 
 **Non e' un login reale**: il selettore non implementa autorizzazioni. Il profilo web
@@ -52,7 +54,7 @@ Le API di registrazione usano l'identita' dimostrativa `CM001`, anche per l'asse
 del task iniziale (prima la CLI lo assegnava a `demo`).
 Gli specialisti simulati sono `CH001` (chirurgo) e `ON001` (oncologo), scelti dal
 backend per il ruolo selezionato, non dal corpo della richiesta.
-Richieste esami, agenda e refertazione rimangono nelle CLI.
+Prenotazione definitiva e refertazione della Diagnostica rimangono nella CLI.
 I dati paziente restano variabili Camunda: questo incremento non introduce un'anagrafica
 o una lista persistente dei casi nel database applicativo.
 
@@ -116,6 +118,9 @@ eseguito prima del packaging. Senza il profilo Spring le API del portale non son
 | GET | `/api/tasks/{key}?role=CHIRURGHI` | Dettaglio del task aperto del gruppo (anche `ONCOLOGI`) |
 | POST | `/api/tasks/{key}/claim?role=CHIRURGHI` | `200`, `CLAIMED`, assegnazione confermata dal broker (anche `ONCOLOGI`) |
 | POST | `/api/tasks/{key}/decision?role=CHIRURGHI` | `200`, `COMPLETED`, task completato dal broker (anche `ONCOLOGI`) |
+| GET | `/api/exams/options` | Combinazioni tipo esame / parte corporea con protocollo attivo e intervallo date del calendario |
+| GET | `/api/exams/slots?examType=TAC&bodyPart=TORACE&day=2026-10-28` | Fasce disponibili del giorno (lista vuota se nessuna); data compresa nei prossimi 10 giorni |
+| POST | `/api/tasks/{key}/exam-request?role=CHIRURGHI` | `200`, `COMPLETED`, richiesta esame inviata completando la valutazione (anche `ONCOLOGI`) |
 
 Il pulsante **Apri dettaglio** mostra una scheda dedicata, aggiornata ogni 5 secondi,
 con ritorno alla lista. La sola apertura del dettaglio non assegna o completa il task.
@@ -145,8 +150,7 @@ Il corpo della decisione e' `{"outcome":"APPROVE","note":"..."}` oppure
 di 2000 caratteri; spazi iniziali/finali vengono rimossi. **Rivedi esito** non invia
 comandi: il task viene completato solo con **Conferma e invia esito**.
 CLI e web condividono il servizio di valutazione e il payload BPMN
-(`isApproved`, `requiresExam: false`, `note`, `validatorId`, `validatorRole`);
-la richiesta di esami continua a usare il percorso CLI esistente.
+(`isApproved`, `requiresExam: false`, `note`, `validatorId`, `validatorRole`).
 
 I comandi verificano anche l'elemento BPMN previsto per il ruolo. Task chiusi,
 assegnazioni incompatibili o comandi rifiutati per stato non attuale restituiscono
@@ -163,10 +167,65 @@ Firme e generazione documento sono simulate: non viene creato un PDF scaricabile
 Input non validi restituiscono `400`; errori di integrazione sono esposti
 come `502` con `ProblemDetail`, senza trasformarli in liste vuote o successi.
 
+### Richiesta esami diagnostici
+
+Dopo la presa in carico scegli **Richiedi esami diagnostici** nel campo **Esito**.
+Il catalogo propone solo combinazioni con protocollo attivo e gia' in vigore:
+non tutte le combinazioni degli enum hanno un protocollo configurato.
+Scegli tipo esame, parte corporea e modalita':
+
+* **Primo slot libero (automatico)**: il laboratorio gestisce la proposta tramite
+  il servizio di schedulazione esistente, senza vincolare la richiesta a una fascia.
+* **Calendario manuale**: scegli un giorno nei prossimi 10 giorni e una fascia
+  disponibile; sono mostrati risorsa, durata e indicazioni del protocollo
+  (contrasto, digiuno, note). Fasce gia' trascorse non sono selezionabili.
+
+Puoi aggiungere note per il laboratorio (massimo 2000 caratteri). **Rivedi richiesta
+esame** non esegue comandi; **Conferma e richiedi esame** completa la valutazione
+Camunda con `requiresExam: true`, non approva ne' rifiuta il paziente.
+Il backend richiede il task aperto del gruppo e assegnato all'operatore corrente.
+Per il calendario ricostruisce la fascia dai servizi esistenti: risorsa e ora iniziale
+devono ancora essere disponibili, mentre protocollo, ora finale e codice risorsa
+non sono accettati dal browser come dati autorevoli. Fascia non disponibile: `409`;
+combinazione senza protocollo, campi o data non validi: `400`.
+
+Esempio automatico:
+
+```json
+{"examType":"TAC","bodyPart":"TORACE","schedulingPreference":"AUTO_FIRST_AVAILABLE","note":"Approfondimento"}
+```
+
+Esempio manuale (ID e data devono provenire dalle disponibilita' effettive):
+
+```json
+{"examType":"TAC","bodyPart":"TORACE","schedulingPreference":"MANUAL_CALENDAR","resourceId":1,"startTime":"2026-10-28T09:00:00","note":"Approfondimento"}
+```
+
+CLI e web condividono la costruzione del payload, compresi identita' richiedente,
+coda senza duplicati e variabili specifiche `chirurgo*` / `oncologo*`.
+Una nuova richiesta automatica azzera i precedenti campi di scelta manuale,
+evitando di riusare una vecchia fascia nei cicli successivi.
+La richiesta manuale web registra `REQUEST_CREATED` dopo il completamento Camunda;
+l'audit applicativo e il comando Camunda non sono una transazione distribuita.
+
+Il BPMN include i mapping `requesterId` verso `chirurgoRequesterId` /
+`oncologoRequesterId` e `examQueue` verso `examQueue`: senza questi mapping
+Camunda scartava ID e coda al completamento dello specialista. Dopo l'aggiornamento
+va distribuita la nuova versione del processo: le istanze gia' avviate restano
+sulla loro versione e non acquisiscono automaticamente i nuovi mapping.
+La coda conserva la logica CLI esistente; lettura e completamento di specialisti
+concorrenti non costituiscono un aggiornamento atomico della coda condivisa.
+
+**La selezione non prenota uno slot** e non scrive una prenotazione nel database.
+La Diagnostica puo' confermare, modificare o rifiutare la proposta dalla CLI,
+che conserva i controlli di conflitto della prenotazione. La disponibilita' puo'
+cambiare anche dopo l'invio della richiesta. Gateway, percorsi e flusso di
+refertazione non sono stati modificati.
+
 ### Verifiche del portale
 
 ```bash
-./mvnw -Dtest=PatientRegistrationServiceTests,WorkflowClientTests,SpecialistTaskServiceTests,SpecialistDecisionTests,PortalControllerTests,PortalHttpTests test
+./mvnw -Dtest=PatientRegistrationServiceTests,WorkflowClientTests,SpecialistTaskServiceTests,SpecialistDecisionTests,DiagnosticExamServiceTests,BpmnExamMappingsTests,PortalControllerTests,PortalHttpTests test
 cd frontend
 npm test
 npm run build
@@ -193,13 +252,16 @@ npm run test:live
 I test usano per default `http://127.0.0.1:8081` e Camunda su
 `http://127.0.0.1:8080`; gli indirizzi possono essere impostati tramite
 `PDTA_LIVE_URL` e `PDTA_CAMUNDA_URL`. Non avvia o arresta i servizi.
-Crea pazienti fittizi `GUI-TEST-*` e `GUI-ACTION-*`, verifica conferma, registrazione,
+Crea pazienti fittizi `GUI-TEST-*`, `GUI-ACTION-*` e `GUI-EXAM-*`, verifica conferma, registrazione,
 visibilita' in entrambi i gruppi, persistenza dopo refresh e ripetizione del
 completamento accesso. Verifica inoltre presa in carico, approvazione di entrambi
 gli specialisti fino alle firme e alla generazione documento simulate, rifiuto
 motivato e blocco di un invio ripetuto. Controlla variabili ed elementi BPMN reali.
+Verifica anche richiesta automatica e manuale fino all'arrivo del task al laboratorio,
+controllando le variabili reali per ruolo senza creare prenotazioni.
 Al termine cancella esclusivamente le proprie istanze ancora attive; quelle gia'
-completate non vengono cancellate. La traccia storica resta visibile in Camunda.
+completate non vengono cancellate. La traccia storica resta visibile in Camunda;
+l'evento di audit della richiesta manuale fittizia resta nel database applicativo.
 
 Il completamento accesso gestisce il ritardo dell'indice Camunda: se un comando
 di assegnazione o completamento restituisce `404` per un task ancora indicizzato

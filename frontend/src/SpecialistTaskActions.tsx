@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { claimTask, decideTask, type SpecialistDecision, type SpecialistRole, type TaskDetail } from './api';
+import { claimTask, decideTask, requestExam, type SpecialistDecision, type SpecialistRole, type TaskDetail } from './api';
+import { DiagnosticExamForm, type ExamDraft } from './DiagnosticExamForm';
 
 export function SpecialistTaskActions({ task, role, refresh, onCompleted }: {
   task: TaskDetail;
@@ -13,9 +14,9 @@ export function SpecialistTaskActions({ task, role, refresh, onCompleted }: {
   const [needsVerification, setNeedsVerification] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [sent, setSent] = useState(false);
-  const [outcome, setOutcome] = useState<SpecialistDecision['outcome']>('APPROVE');
+  const [outcome, setOutcome] = useState<SpecialistDecision['outcome'] | 'EXAM'>('APPROVE');
   const [note, setNote] = useState('');
-  const [review, setReview] = useState<SpecialistDecision | null>(null);
+  const [review, setReview] = useState<({ kind: 'decision' } & SpecialistDecision) | ExamDraft | null>(null);
   const mine = task.assignee === task.currentOperatorId;
   const other = Boolean(task.assignee) && !mine;
 
@@ -35,7 +36,8 @@ export function SpecialistTaskActions({ task, role, refresh, onCompleted }: {
         setClaimed(true);
         await refresh();
       } else if (review) {
-        await decideTask(task.taskKey, role, review);
+        if (review.kind === 'exam') await requestExam(task.taskKey, role, review.request);
+        else await decideTask(task.taskKey, role, { outcome: review.outcome, note: review.note });
         completed = true;
         setSent(true);
         onCompleted();
@@ -66,7 +68,7 @@ export function SpecialistTaskActions({ task, role, refresh, onCompleted }: {
 
   function prepare(event: FormEvent) {
     event.preventDefault();
-    setReview({ outcome, note: note.trim() });
+    if (outcome !== 'EXAM') setReview({ kind: 'decision', outcome, note: note.trim() });
   }
 
   return (
@@ -83,28 +85,42 @@ export function SpecialistTaskActions({ task, role, refresh, onCompleted }: {
           <button disabled={busy || needsVerification || claimed} onClick={() => void act('claim')}>
             {busy ? 'Presa in carico...' : 'Prendi in carico'}
           </button>
-        </> : review ? <div>
+        </> : <>
+        {review && <div>
           <h4>Conferma esito della valutazione</h4>
           <dl className="review">
             <dt>Paziente</dt><dd>{task.patientID}</dd>
-            <dt>Esito</dt><dd>{review.outcome === 'APPROVE' ? 'Approvazione' : 'Rifiuto'}</dd>
-            <dt>{review.outcome === 'REJECT' ? 'Motivazione' : 'Note'}</dt><dd>{review.note || 'Nessuna nota'}</dd>
+            <dt>Esito</dt><dd>{review.kind === 'exam' ? 'Richiesta esami' : review.outcome === 'APPROVE' ? 'Approvazione' : 'Rifiuto'}</dd>
+            {review.kind === 'exam' ? <>
+              <dt>Esame</dt><dd>{review.request.examType} · {review.request.bodyPart.replaceAll('_', ' ')}</dd>
+              <dt>Schedulazione</dt><dd>{review.slot
+                ? `${review.slot.startTime.replace('T', ' ')} - ${review.slot.endTime.slice(11, 16)} · ${review.slot.resourceCode}`
+                : 'Primo slot libero (automatico)'}</dd>
+              <dt>Note per laboratorio</dt><dd>{review.request.note || 'Nessuna nota'}</dd>
+            </> : <>
+              <dt>{review.outcome === 'REJECT' ? 'Motivazione' : 'Note'}</dt><dd>{review.note || 'Nessuna nota'}</dd>
+            </>}
           </dl>
           <p>Confermando completi il task. Il percorso proseguira' secondo le regole Camunda.</p>
           <div className="form-footer">
             <button className="secondary" disabled={busy || needsVerification || sent} onClick={() => setReview(null)}>Modifica esito</button>
-            <button disabled={busy || needsVerification || sent} className={review.outcome === 'REJECT' ? 'danger' : ''}
-              onClick={() => void act('decide')}>{busy ? 'Invio in corso...' : 'Conferma e invia esito'}</button>
+            <button disabled={busy || needsVerification || sent} className={review.kind === 'decision' && review.outcome === 'REJECT' ? 'danger' : ''}
+              onClick={() => void act('decide')}>{busy ? 'Invio in corso...' : review.kind === 'exam' ? 'Conferma e richiedi esame' : 'Conferma e invia esito'}</button>
           </div>
-        </div> : <form onSubmit={prepare}>
+        </div>}
+        <div hidden={Boolean(review)}>
+          <label className="decision-label">Esito
+            <select disabled={busy || needsVerification || sent} value={outcome} onChange={event => {
+              const value = event.target.value;
+              if (value === 'APPROVE' || value === 'REJECT' || value === 'EXAM') setOutcome(value);
+            }}>
+              <option value="APPROVE">Approva</option><option value="REJECT">Rifiuta</option>
+              <option value="EXAM">Richiedi esami diagnostici</option>
+            </select>
+          </label>
+          {outcome === 'EXAM' ? <DiagnosticExamForm disabled={busy || needsVerification || sent} onReview={setReview} />
+            : <form onSubmit={prepare}>
           <fieldset disabled={busy || needsVerification}>
-            <label className="decision-label">Esito
-              <select value={outcome} onChange={event => {
-                if (event.target.value === 'APPROVE' || event.target.value === 'REJECT') setOutcome(event.target.value);
-              }}>
-                <option value="APPROVE">Approva</option><option value="REJECT">Rifiuta</option>
-              </select>
-            </label>
             <label className="decision-label">{outcome === 'REJECT' ? 'Motivazione del rifiuto (obbligatoria)' : 'Note (facoltative)'}
               <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000}
                 required={outcome === 'REJECT'} rows={3} />
@@ -112,7 +128,8 @@ export function SpecialistTaskActions({ task, role, refresh, onCompleted }: {
             <button type="submit" disabled={outcome === 'REJECT' && !note.trim()}>Rivedi esito</button>
           </fieldset>
         </form>}
-      <p className="detail-footnote">La richiesta di esami diagnostici rimane disponibile nella CLI.</p>
+        </div>
+        </>}
     </section>
   );
 }

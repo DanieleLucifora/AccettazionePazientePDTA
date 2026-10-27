@@ -4,6 +4,10 @@ import io.camunda.client.CamundaClient;
 import it.uni.pdta.pdta_camunda.registration.PatientRegistrationService;
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamService;
+import it.uni.pdta.pdta_camunda.scheduling.service.BookingService;
+import it.uni.pdta.pdta_camunda.scheduling.service.ResourceEventService;
+import it.uni.pdta.pdta_camunda.scheduling.domain.repository.ExamProtocolRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
@@ -30,5 +34,11 @@ public class WebUiConfiguration {
     @Bean
     SpecialistTaskService specialistTaskService(CamundaRestClient restClient) {
         return new SpecialistTaskService(restClient);
+    }
+
+    @Bean
+    DiagnosticExamService diagnosticExamService(SpecialistTaskService tasks, CamundaRestClient rest,
+            BookingService booking, ExamProtocolRepository protocols, ResourceEventService events) {
+        return new DiagnosticExamService(tasks, rest, booking, protocols, events);
     }
 }
