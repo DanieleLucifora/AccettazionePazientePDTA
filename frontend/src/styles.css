@@ -83,3 +83,4 @@ td { padding: 18px 12px; border-bottom: 1px solid #e9eff0; vertical-align: top; 
 @media (min-width: 1500px) { main { padding-top: 40px; } }
 @media (max-width: 1000px) { .sidebar { width: 205px; padding-inline: 16px; } main, .topbar { padding-inline: 24px; } .demo-banner label { margin-left: 0; } }
 @media (max-width: 700px) { .app-shell { display: block; } .sidebar { width: 100%; padding: 16px 20px; } .sidebar nav, .nav-label, .sidebar-note, .version { display: none; } .brand { font-size: 21px; } .topbar { padding: 14px 20px; } .breadcrumb { display: none; } .operator { margin-left: auto; } main { padding: 20px 16px; } .card { padding: 20px; } .form-grid { grid-template-columns: 1fr; } .form-footer { flex-direction: column; align-items: stretch; } .section-heading.split { flex-direction: column; } .page-heading { margin-top: 28px; } }
+.report-text { white-space: pre-wrap; overflow-wrap: anywhere; }

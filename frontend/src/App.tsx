@@ -50,12 +50,12 @@ export default function App() {
               : role === 'LABORATORIO' ? 'Organizza gli approfondimenti diagnostici.' : 'Le valutazioni del tuo gruppo.'}</h1>
             <p>{role === 'CASE_MANAGER'
               ? 'Avvia il percorso del paziente. Camunda coordina i passaggi successivi.'
-              : role === 'LABORATORIO' ? 'Gestisci richieste e prenotazioni del laboratorio.'
+              : role === 'LABORATORIO' ? 'Gestisci richieste, prenotazioni e referti del laboratorio.'
                 : 'Consulta i pazienti in attesa della valutazione specialistica.'}</p></div>
           {role === 'CASE_MANAGER' ? <RegistrationForm /> : role === 'LABORATORIO' ? <DiagnosticTasks />
             : <SpecialistTasks key={role} role={role} />}
           <footer className="page-footer">PDTA · Workflow di accettazione paziente
-            <span>Refertazione diagnostica: disponibile nella CLI.</span></footer>
+            <span>Diagnostica: prenotazioni e referti nel portale.</span></footer>
         </main>
       </div>
     </div>

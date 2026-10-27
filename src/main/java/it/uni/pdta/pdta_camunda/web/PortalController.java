@@ -9,6 +9,8 @@ import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamRequest;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamService;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticTaskService;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticBookingCommand;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticReportCommand;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticReportService;
 import it.uni.pdta.pdta_camunda.scheduling.domain.enums.ExamType;
 import it.uni.pdta.pdta_camunda.scheduling.domain.enums.BodyPart;
 import it.uni.pdta.pdta_camunda.scheduling.service.dto.SlotSuggestion;
@@ -31,13 +33,15 @@ public class PortalController {
     private final SpecialistTaskService taskService;
     private final DiagnosticExamService exams;
     private final DiagnosticTaskService diagnostics;
+    private final DiagnosticReportService reports;
 
     public PortalController(PatientRegistrationService registrationService, SpecialistTaskService taskService,
-            DiagnosticExamService exams, DiagnosticTaskService diagnostics) {
+            DiagnosticExamService exams, DiagnosticTaskService diagnostics, DiagnosticReportService reports) {
         this.registrationService = registrationService;
         this.taskService = taskService;
         this.exams = exams;
         this.diagnostics = diagnostics;
+        this.reports = reports;
     }
 
     @PostMapping("/registrations")
@@ -119,4 +123,19 @@ public class PortalController {
             @Valid @RequestBody DiagnosticBookingCommand command) throws Exception {
         return diagnostics.decide(key, command);
     }
+
+    @GetMapping("/diagnostics/tasks/{key}/report")
+    public ReportStatus diagnosticReport(
+            @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key) throws Exception {
+        return new ReportStatus(reports.status(key));
+    }
+
+    @PostMapping("/diagnostics/tasks/{key}/report")
+    public DiagnosticReportService.ReportView submitDiagnosticReport(
+            @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key,
+            @Valid @RequestBody DiagnosticReportCommand command) throws Exception {
+        return reports.submit(key, command);
+    }
+
+    public record ReportStatus(DiagnosticReportService.ReportView report) {}
 }

@@ -27,6 +27,10 @@ public class DiagnosticBookingDecision {
     private BookingSlot slot;
     @Column(nullable = false)
     private LocalDateTime decidedAt;
+    @Column(length = 10000)
+    private String reportText;
+    private LocalDateTime reportedAt;
+    private LocalDateTime reportDeliveredAt;
     @Version
     private Long version;
 }

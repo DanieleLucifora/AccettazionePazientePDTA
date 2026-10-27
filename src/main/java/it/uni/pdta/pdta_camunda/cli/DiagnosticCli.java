@@ -3,6 +3,8 @@ package it.uni.pdta.pdta_camunda.cli;
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticBookingCommand;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticRequestContext;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticReportService;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticReportCommand;
 import it.uni.pdta.pdta_camunda.scheduling.service.DiagnosticBookingStore;
 import it.uni.pdta.pdta_camunda.model.OperatoreSanitario;
 import it.uni.pdta.pdta_camunda.model.TecnicoLaboratorio;
@@ -96,6 +98,11 @@ public class DiagnosticCli {
                         boolean alreadyHandled = handledTaskKeys.contains(t.userTaskKey);
                         
                         if (isCreated && hasGroup && !alreadyHandled) {
+                            var decision = bookingStore.find(t.userTaskKey).orElse(null);
+                            if (decision != null && decision.getSlot() != null && decision.getReportText() == null
+                                    && decision.getSlot().getEndTime().isAfter(LocalDateTime.now())) {
+                                continue;
+                            }
                             targetTask = t;
                             break;
                         }
@@ -197,6 +204,7 @@ public class DiagnosticCli {
         }
         if (savedDecision != null) {
             if (savedDecision.getSlot() != null
+                    && savedDecision.getReportText() == null
                     && savedDecision.getSlot().getStatus() != it.uni.pdta.pdta_camunda.scheduling.domain.enums.SlotStatus.BOOKED) {
                 throw new IllegalStateException("Prenotazione salvata non piu' attiva: verificare prima di refertare.");
             }
@@ -233,13 +241,24 @@ public class DiagnosticCli {
             return;
         }
 
+        var reporting = new DiagnosticReportService(restClient, bookingStore);
+        var savedReport = bookingStore.find(task.userTaskKey).orElseThrow();
+        if (savedReport.getReportText() == null && savedReport.getSlot().getEndTime().isAfter(LocalDateTime.now())) {
+            System.out.println("Refertazione consentita solo dopo la fine della fascia prenotata: " + savedReport.getSlot().getEndTime());
+            return;
+        }
         System.out.println("Esecuzione esame in corso...");
-        System.out.print("Inserisci il referto dell'esame: ");
-        String examResult = scanner.nextLine().trim();
-
-        if (examResult.isEmpty()) {
-            examResult = "Nessuna anomalia riscontrata.";
-            System.out.println("(Referto vuoto -> inserito default: '" + examResult + "')");
+        String examResult;
+        if (savedReport.getReportText() != null) {
+            examResult = savedReport.getReportText();
+            System.out.println("Referto gia' salvato: verra' verificato o ripreso lo stesso invio.");
+        } else {
+            System.out.print("Inserisci il referto dell'esame (obbligatorio, massimo 10000 caratteri): ");
+            examResult = scanner.nextLine().trim();
+            if (!new DiagnosticReportCommand(examResult).valid()) {
+                System.err.println("Referto non valido: nessun invio effettuato.");
+                return;
+            }
         }
 
         // Conferma
@@ -253,47 +272,11 @@ public class DiagnosticCli {
             return;
         }
 
-        logPostDecisionEvents(
-            task,
-            bookingDecision,
-            examResult,
-            requesterRole,
-            requesterId,
-            requesterName
-        );
-
-        completeTaskWithOutcome(task, requesterRole, examQueue, examResult, bookingDecision);
-    }
-
-    private void logPostDecisionEvents(CamundaRestClient.UserTask task,
-                                       BookingDecision bookingDecision,
-                                       String examResult,
-                                       String requesterRole,
-                                       String requesterId,
-                                       String requesterName) {
-        if (resourceEventService == null || bookingDecision == null || bookingDecision.slot == null) {
-            return;
+        var outcome = reporting.submit(task.userTaskKey, new DiagnosticReportCommand(examResult));
+        if ("SENT".equals(outcome.status())) {
+            handledTaskKeys.add(task.userTaskKey);
+            System.out.println(colorize("REFERTO INVIATO", Color.GREEN));
         }
-
-        Map<String, Object> auditMetadata = buildAuditMetadata(requesterRole, requesterId, requesterName);
-
-        if (bookingDecision.modified && bookingStore.find(task.userTaskKey).isEmpty()) {
-            resourceEventService.logSlotRescheduled(
-                    bookingDecision.slot,
-                    currentUser.getId(),
-                    task.processInstanceKey,
-                    bookingDecision.reason,
-                    auditMetadata
-            );
-        }
-
-        resourceEventService.logExamCompleted(
-                bookingDecision.slot,
-                currentUser.getId(),
-                task.processInstanceKey,
-                examResult,
-                auditMetadata
-        );
     }
 
     private void logRejectedEvent(CamundaRestClient.UserTask task,

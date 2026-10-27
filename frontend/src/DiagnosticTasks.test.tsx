@@ -9,7 +9,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const task: DiagnosticTask = { taskKey: '42', processInstanceKey: '100', assignee: 'LAB002',
   patientID: 'DEMO-LAB', patientData: 'Paziente fittizio', diagnosiCode: '6401',
-  contextError: null, proposal: null, proposalMessage: null, decision: null,
+  contextError: null, proposal: null, proposalMessage: null, decision: null, report: null, reportAllowed: false,
   request: { requesterRole: 'CHIRURGHI', requesterId: 'CH001', requesterName: 'Marco Bianchi', examType: 'TAC',
     bodyPart: 'TORACE', schedulingPreference: 'AUTO_FIRST_AVAILABLE', note: '', proposedStart: '', proposedResourceId: '' } };
 

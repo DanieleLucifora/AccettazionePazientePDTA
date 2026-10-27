@@ -27,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("web-ui")
 @ContextConfiguration(classes = {PortalController.class, PortalExceptionHandler.class})
 class PortalControllerTests {
+    @MockitoBean it.uni.pdta.pdta_camunda.workflow.DiagnosticReportService reports;
     @Autowired MockMvc mvc;
     @MockitoBean PatientRegistrationService registration;
     @MockitoBean SpecialistTaskService tasks;

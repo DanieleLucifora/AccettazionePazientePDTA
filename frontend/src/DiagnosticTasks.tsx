@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { DiagnosticReportForm } from './DiagnosticReportForm';
 import {
   ApiError, getDiagnosticTasks, getDiagnosticTask, claimDiagnosticTask, bookDiagnosticTask,
   getExamOptions, getExamSlots, type DiagnosticTask, type DiagnosticBookingCommand, type ExamSlot,
@@ -17,7 +18,7 @@ export function DiagnosticTasks() {
   }} />;
   return <section className="card">
     <div className="section-heading split"><div><h2>Richieste diagnostiche</h2>
-      <p>Aggiornamento ogni 5 secondi. Prenotazione e rifiuto delle richieste; refertazione nella CLI.</p></div>
+      <p>Aggiornamento ogni 5 secondi. Prenotazione, rifiuto e refertazione delle richieste.</p></div>
       <button className="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}>Aggiorna richieste</button>
     </div>
     {query.isPending && <p role="status">Caricamento richieste...</p>}
@@ -30,7 +31,8 @@ export function DiagnosticTasks() {
         <td><strong>{task.patientID}</strong><span className="cell-detail">{task.patientData}</span></td>
         <td>{task.request?.requesterName || 'Non identificabile'}<span className="cell-detail">{task.request?.requesterRole}</span></td>
         <td>{task.request ? `${task.request.examType} / ${task.request.bodyPart}` : task.contextError}</td>
-        <td>{task.decision ? task.decision.action === 'REJECT' ? 'Rifiuto da restituire'
+        <td>{task.report ? task.report.status === 'SENT' ? 'Referto inviato' : 'Referto salvato, invio da verificare'
+          : task.decision ? task.decision.action === 'REJECT' ? 'Rifiuto da restituire'
           : task.decision.slotStatus === 'BOOKED' ? 'Prenotato, attesa referto' : `Prenotazione ${task.decision.slotStatus}: verificare`
           : task.assignee ? `Assegnata a ${task.assignee}` : 'Da assegnare'}</td>
         <td><button className="secondary" aria-label={`Apri richiesta ${task.taskKey} per paziente ${task.patientID}`}
@@ -42,7 +44,7 @@ export function DiagnosticTasks() {
 
 function DiagnosticDetail({ taskKey, onBack }: { taskKey: string; onBack: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const [closed, setClosed] = useState(false);
+  const [closed, setClosed] = useState<'rejection' | 'report' | null>(null);
   const query = useQuery({ queryKey: ['diagnostic-detail', taskKey],
     queryFn: ({ signal }) => getDiagnosticTask(taskKey, signal), retry: false, gcTime: 0, enabled: !closed,
     refetchInterval: query => query.state.error instanceof ApiError
@@ -52,19 +54,21 @@ function DiagnosticDetail({ taskKey, onBack }: { taskKey: string; onBack: () => 
     <div className="section-heading split"><div><h2 ref={heading} tabIndex={-1}>Dettaglio richiesta diagnostica</h2>
       <p>Operatore dimostrativo LAB001 · Mario Neri</p></div>
       <button className="secondary" onClick={onBack}>Torna alle richieste</button></div>
-    {closed ? <div role="status" className="notice success"><h3>Rifiuto restituito allo specialista</h3>
+    {closed ? <div role="status" className="notice success"><h3>{closed === 'report' ? 'Referto inviato allo specialista' : 'Rifiuto restituito allo specialista'}</h3>
       <p>Camunda ha confermato il completamento del task diagnostico.</p></div>
       : query.isError ? <div className="notice error" role="alert"><p>{query.error.message}</p>
-        <button disabled={query.isFetching} onClick={() => void query.refetch()}>Verifica richiesta</button></div>
+        <button disabled={query.isFetching} onClick={() => void query.refetch()}>Verifica richiesta</button>
+        <DiagnosticReportForm taskKey={taskKey} report={null} allowed={false} readOnly unavailable
+          onSent={() => setClosed('report')} /></div>
       : query.data ? <DiagnosticDetailContent task={query.data} refresh={async () => {
         const result = await query.refetch();
         if (result.error) throw result.error;
-      }} onClosed={() => setClosed(true)} /> : <p role="status">Caricamento dettaglio...</p>}
+      }} onClosed={() => setClosed('rejection')} onReportSent={() => setClosed('report')} /> : <p role="status">Caricamento dettaglio...</p>}
   </section>;
 }
 
-function DiagnosticDetailContent({ task, refresh, onClosed }: {
-  task: DiagnosticTask; refresh: () => Promise<void>; onClosed: () => void;
+function DiagnosticDetailContent({ task, refresh, onClosed, onReportSent }: {
+  task: DiagnosticTask; refresh: () => Promise<void>; onClosed: () => void; onReportSent: () => void;
 }) {
   const [action, setAction] = useState<DiagnosticBookingCommand['action']>('CONFIRM');
   const [reason, setReason] = useState('');
@@ -137,6 +141,8 @@ function DiagnosticDetailContent({ task, refresh, onClosed }: {
     {error && <div role="alert" className="notice error"><p>{error}</p>
       <p>Non ripetere l'operazione senza verificare lo stato.</p>
       <button disabled={busy} onClick={() => void verify()}>Verifica stato prenotazione</button></div>}
+    {task.decision && !mine && !other && !task.contextError && <button disabled={blocked}
+      onClick={() => void mutate()}>Prendi in carico richiesta</button>}
     {task.decision ? <div className="notice success" role="status">
       <h3>{task.decision.action === 'REJECT' ? 'Rifiuto salvato' : 'Prenotazione salvata'}</h3>
       {task.decision.slot && <p>{slotText(task.decision.slot)} · ID {task.decision.slotId} · {task.decision.slotStatus}</p>}
@@ -146,7 +152,7 @@ function DiagnosticDetailContent({ task, refresh, onClosed }: {
           {mine && !task.contextError && <button disabled={blocked} onClick={() => void mutate({
             action: 'REJECT', reason: task.decision!.reason, resourceId: null, startTime: null,
           })}>Restituisci rifiuto salvato</button>}</>
-        : <p>Il task resta aperto per il referto, disponibile nella CLI. Non viene creata un'altra prenotazione.</p>}
+        : <p>Il task resta aperto per il referto. Non viene creata un'altra prenotazione.</p>}
     </div> : context && !task.contextError && <>
       {other ? <p className="notice">Attivita' assegnata a un altro operatore: {task.assignee}.</p>
         : !mine ? <button disabled={blocked} onClick={() => void mutate()}>Prendi in carico richiesta</button>
@@ -215,5 +221,7 @@ function DiagnosticDetailContent({ task, refresh, onClosed }: {
           </form>}
         </>}
     </>}
+    {task.decision && task.decision.action !== 'REJECT' && <DiagnosticReportForm taskKey={task.taskKey}
+      report={task.report} allowed={task.reportAllowed} readOnly={!mine || !!task.contextError} onSent={onReportSent} />}
   </>;
 }

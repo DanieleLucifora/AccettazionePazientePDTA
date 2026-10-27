@@ -50,6 +50,8 @@ Disponibili:
   conferma della proposta, modifica motivata della fascia oppure rifiuto motivato;
 * decisioni diagnostiche persistenti, con protezione dalle doppie prenotazioni
   dello stesso task anche fra CLI e GUI;
+* referto diagnostico obbligatorio con riepilogo, conferma, salvataggio persistente
+  e ritorno al solo specialista richiedente, dopo la fine della fascia prenotata;
 * errori espliciti e recupero della chiave di una registrazione pendente nella stessa sessione del browser.
 
 **Non e' un login reale**: il selettore non implementa autorizzazioni. Il profilo web
@@ -59,7 +61,7 @@ del task iniziale (prima la CLI lo assegnava a `demo`).
 Gli specialisti simulati sono `CH001` (chirurgo) e `ON001` (oncologo), scelti dal
 backend per il ruolo selezionato, non dal corpo della richiesta.
 L'operatore Diagnostica simulato e' `LAB001` (Mario Neri).
-La prenotazione definitiva e' disponibile nella GUI; la refertazione rimane nella CLI.
+Prenotazione definitiva e refertazione sono disponibili nella GUI e nella CLI.
 I dati paziente restano variabili Camunda: questo incremento non introduce un'anagrafica
 o una lista persistente dei casi nel database applicativo.
 
@@ -130,6 +132,8 @@ eseguito prima del packaging. Senza il profilo Spring le API del portale non son
 | GET | `/api/diagnostics/tasks/{key}` | Dettaglio richiesta, proposta corrente e prenotazione persistita |
 | POST | `/api/diagnostics/tasks/{key}/claim` | `200`, `CLAIMED`, assegnazione non sovrascrivibile a `LAB001` |
 | POST | `/api/diagnostics/tasks/{key}/booking` | `200`, `BOOKED` oppure `COMPLETED` per il rifiuto restituito a Camunda |
+| POST | `/api/diagnostics/tasks/{key}/report` | `200`, referto persistito e stato `SENT` dopo conferma Camunda |
+| GET | `/api/diagnostics/tasks/{key}/report` | `200`, `{"report":null}` se assente, oppure testo, date e stato `PENDING` / `SENT`, anche a task chiuso |
 
 ### Prenotazione diagnostica
 
@@ -144,7 +148,7 @@ Solo dopo la conferma dell'assegnazione puoi rivedere e confermare la decisione:
   restituendo una notifica di rifiuto allo specialista, non un referto clinico.
 
 Conferma e modifica occupano realmente la risorsa. Il task Camunda resta aperto per
-la refertazione nella CLI, che riutilizza la prenotazione senza crearne un'altra.
+la refertazione dalla GUI o dalla CLI, riutilizzando la prenotazione senza crearne un'altra.
 Anche le nuove decisioni prese dalla CLI vengono salvate nello stesso archivio.
 La CLI Diagnostica richiede quindi il database di scheduling disponibile e condiviso
 con il portale; non prosegue con una refertazione senza archivio se il bootstrap fallisce.
@@ -167,6 +171,47 @@ una variabile globale condivisa. Distribuiscilo prima di avviare nuovi percorsi
 con richieste parallele. I processi gia' avviati mantengono la vecchia definizione:
 la GUI accetta il vecchio task condiviso solo se la richiesta e' univoca; se entrambi
 gli specialisti hanno richieste pendenti ne impedisce la lavorazione.
+
+### Refertazione diagnostica
+
+Nel dettaglio di una richiesta prenotata, il riquadro **Referto diagnostico** si
+abilita **solo dopo la fine della fascia prenotata**, secondo l'orologio locale del
+server. Non basta cambiare l'orologio del browser: il backend ripete il controllo.
+La prenotazione deve essere attiva (`BOOKED` / `IN_PROGRESS`), il task aperto e
+assegnato a `LAB001`, con contesto esame e richiedente coerenti.
+La stessa regola temporale si applica ora alla CLI.
+
+Inserisci un testo non vuoto di massimo 10000 caratteri, usa **Rivedi referto** e
+poi **Conferma e invia referto**. La bozza resta solo in memoria nel componente:
+uscire dal dettaglio o ricaricare la pagina prima della conferma puo' perderla.
+Il riepilogo non invia comandi. Non viene piu' generato un esito clinico automatico
+se il testo e' vuoto, neppure dalla CLI.
+
+Alla conferma, il testo diventa definitivo. Il salvataggio del referto, il passaggio
+dello slot a `COMPLETED` e l'unico evento `EXAM_COMPLETED` avvengono nella stessa
+transazione database. Un esame completato non puo' essere annullato tramite il
+servizio di prenotazione. Successivamente viene completato il task Camunda con
+`chirurgoExamResult` oppure `oncologoExamResult`, metadati dello slot e del
+refertatore, flag della sola richiesta e chiave di correlazione per ruolo.
+Il BPMN versione 7 gia' distribuito riporta al richiedente corretto: non occorre
+una nuova distribuzione del processo per questo incremento.
+
+Database e Camunda non condividono una transazione distribuita. Se la risposta
+non arriva, **non riscrivere il referto**: usa **Verifica stato referto**.
+Un referto `PENDING` e' salvato, ma l'invio non e' ancora confermato; se il task
+e' ancora aperto puoi usare **Riprendi invio referto salvato**. Viene inviato
+esattamente lo stesso testo, senza un nuovo evento di completamento.
+Il recupero e' disponibile anche dopo refresh; GUI e CLI condividono archivio,
+controlli e servizio di invio. Non e' prevista la rettifica di referti gia' confermati.
+
+Se il dettaglio del task e' ormai chiuso, il pulsante di verifica del referto resta
+disponibile nel messaggio di errore. La verifica puo' riconciliare la conferma persa
+solo se Camunda mostra il task `COMPLETED` con testo e chiave di correlazione
+corrispondenti. Non ripete comandi Camunda. Uno stato chiuso senza questa evidenza,
+un task annullato, o un errore di lettura non vengono trasformati in un invio riuscito:
+verifica su Operate. I riepiloghi gia' confermati restano disponibili tramite l'API
+del referto usando la chiave del task; non e' ancora presente un archivio storico
+dei referti nella navigazione del portale.
 
 Il pulsante **Apri dettaglio** mostra una scheda dedicata, aggiornata ogni 5 secondi,
 con ritorno alla lista. La sola apertura del dettaglio non assegna o completa il task.
@@ -267,12 +312,12 @@ La Diagnostica puo' confermare, modificare o rifiutare la proposta dalla GUI
 oppure dalla CLI, con gli stessi controlli di conflitto della prenotazione.
 La disponibilita' puo' cambiare anche dopo l'invio della richiesta.
 I due percorsi diagnostici hanno ora ritorni separati al rispettivo specialista;
-l'inserimento del referto rimane nella CLI.
+anche l'inserimento del referto e' disponibile nel portale.
 
 ### Verifiche del portale
 
 ```bash
-./mvnw -Dtest=PatientRegistrationServiceTests,WorkflowClientTests,SpecialistTaskServiceTests,SpecialistDecisionTests,DiagnosticExamServiceTests,DiagnosticRequestContextTests,BpmnExamMappingsTests,PortalControllerTests,PortalHttpTests,DiagnosticHttpTests test
+./mvnw -Dtest=PatientRegistrationServiceTests,WorkflowClientTests,SpecialistTaskServiceTests,SpecialistDecisionTests,DiagnosticExamServiceTests,DiagnosticRequestContextTests,BpmnExamMappingsTests,PortalControllerTests,PortalHttpTests,DiagnosticHttpTests,DiagnosticReportHttpTests test
 cd frontend
 npm test
 npm run build
@@ -285,6 +330,9 @@ Camunda simulata. I test browser verificano il portale con risposte API simulate
 Le verifiche diagnostiche includono conferma, modifica motivata, rifiuto,
 recupero dopo timeout, decisioni lette dal database dopo il salvataggio,
 concorrenza sulla stessa risorsa e doppio invio sullo stesso task.
+La refertazione verifica inoltre testo obbligatorio e limite di lunghezza,
+fine fascia al nanosecondo, slot completato e storico atomici, recupero dopo
+timeout, correlazione della conferma e conflitto fra testi concorrenti.
 Non sostituiscono la verifica BPMN/DMN end-to-end con Camunda realmente attivo.
 Anche il test di caricamento del contesto usa H2 in memoria, senza modificare il database locale.
 Il cron KPI legge ora direttamente `pdta.kpi.daily-cron`: il precedente riferimento
@@ -318,6 +366,24 @@ completate non vengono cancellate. La traccia storica resta visibile in Camunda;
 l'evento di audit della richiesta manuale fittizia e le decisioni di rifiuto
 restano nel database applicativo. I test live non occupano slot: conferma e modifica
 della prenotazione vengono provate dai test HTTP con database isolato.
+
+Per verificare anche la refertazione reale senza occupare slot nel database locale:
+
+```bash
+PDTA_REPORT_LIVE=true ./mvnw -Pweb-ui -Dtest=DiagnosticReportLiveTests test
+```
+
+Occorrono Camunda con BPMN/DMN e l'applicazione worker gia' attivi, Node.js e Chromium
+Playwright installati. Il test avvia automaticamente un server temporaneo su porta
+casuale e database H2 in memoria, crea due richieste parallele in Camunda e prepara
+solo nel database di prova prenotazioni con fascia gia' terminata. Verifica prima
+il rifiuto dell'invio prematuro, poi usa il browser per inviare i due referti e
+controllarne il ritorno alle rispettive rivalutazioni. Non introduce API per
+alterare l'orario o aggirare il controllo temporale. Al termine annulla il proprio
+processo; lo storico Camunda rimane, mentre il database di prova viene scartato.
+Il test e' saltato nella suite Java standard se la variabile non e' impostata;
+il relativo scenario browser richiede le fixture fornite dal test Java e viene
+saltato nell'esecuzione ordinaria di `npm run test:live`.
 
 Il completamento accesso gestisce il ritardo dell'indice Camunda: se un comando
 di assegnazione o completamento restituisce `404` per un task ancora indicizzato
@@ -382,7 +448,7 @@ Avvia la CLI di laboratorio che monitora e completa i task "Esami Diagnostici".
 *   La CLI specialista invia variabili di processo per la gestione degli esami: `requiresExam`, `examType`, `requesterRole`, `requesterName`. Può selezionare manualmente slot prenotabili dall'interfaccia.
 *   La CLI diagnostica può: (1) confermare lo slot proposto, (2) modificare data/ora con giustificazione, (3) rifiutare con motivazione. Ogni azione è tracciata negli audit eventi.
 *   I referti sono gestiti per ruolo (`chirurgoExamResult`, `oncologoExamResult`) così ogni specialista visualizza il referto corretto.
-*   La CLI diagnostica gestisce eventuali task stale con deduplica chiavi e fallback su errori 404 durante assegnazione/completamento.
+*   La CLI diagnostica usa il servizio condiviso per salvare e inviare i referti; un errore di completamento richiede verifica, non equivale a successo.
 *   **Configurazione dati:** Attualmente esami, risorse diagnostiche e slot temporali sono hardcoded nel seeder per velocità di prototipazione. In futuro saranno gestibili dinamicamente tramite CLI.
 *   **KPI Giornalieri:** Sistema automatico di snapshot KPI schedulato giornalmente (configurabile via `application.yml`).
 *   **Tracciabilità completa:** Ogni evento di scheduling registra chi ha richiesto e chi ha eseguito/refertato, garantendo visibilità operativa totale.

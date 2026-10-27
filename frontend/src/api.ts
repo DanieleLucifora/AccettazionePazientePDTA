@@ -89,7 +89,22 @@ export interface DiagnosticTask {
   proposal: ExamSlot | null;
   proposalMessage: string | null;
   decision: DiagnosticDecision | null;
+  report: DiagnosticReport | null;
+  reportAllowed: boolean;
 }
+export interface DiagnosticReport {
+  taskKey: string;
+  text: string;
+  reportedAt: string;
+  deliveredAt: string | null;
+  status: 'PENDING' | 'SENT';
+}
+export const getDiagnosticReport = (key: string): Promise<{ report: DiagnosticReport | null }> =>
+  request(`/diagnostics/tasks/${encodeURIComponent(key)}/report`);
+export const submitDiagnosticReport = (key: string, text: string): Promise<DiagnosticReport> =>
+  request(`/diagnostics/tasks/${encodeURIComponent(key)}/report`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
+  });
 export interface DiagnosticBookingCommand {
   action: DiagnosticDecision['action'];
   resourceId: number | null;

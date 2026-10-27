@@ -156,8 +156,11 @@ public class BookingService {
      */
     @Transactional
     public void cancelSlot(Long slotId, String reason) {
-        BookingSlot slot = bookingSlotRepository.findById(slotId)
+        BookingSlot slot = bookingSlotRepository.findByIdWithLock(slotId)
                 .orElseThrow(() -> new IllegalArgumentException("Slot non trovato: " + slotId));
+        if (slot.getStatus() == SlotStatus.COMPLETED) {
+            throw new SlotConflictException("Un esame gia' refertato non puo' essere annullato.");
+        }
         slot.setStatus(SlotStatus.CANCELED);
         slot.setCancelReason(reason);
         BookingSlot saved = bookingSlotRepository.save(slot);

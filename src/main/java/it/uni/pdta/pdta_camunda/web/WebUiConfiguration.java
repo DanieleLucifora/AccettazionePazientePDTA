@@ -6,6 +6,7 @@ import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamService;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticTaskService;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticReportService;
 import it.uni.pdta.pdta_camunda.scheduling.service.DiagnosticBookingStore;
 import it.uni.pdta.pdta_camunda.scheduling.service.BookingService;
 import it.uni.pdta.pdta_camunda.scheduling.service.ResourceEventService;
@@ -21,6 +22,11 @@ import java.time.Duration;
 @Configuration
 @Profile("web-ui")
 public class WebUiConfiguration {
+    @Bean
+    DiagnosticReportService diagnosticReportService(CamundaRestClient rest, DiagnosticBookingStore store) {
+        return new DiagnosticReportService(rest, store);
+    }
+
     @Bean
     CamundaRestClient workflowRestClient(RestTemplateBuilder builder,
             @Value("${camunda.client.rest-address}") String restAddress) {

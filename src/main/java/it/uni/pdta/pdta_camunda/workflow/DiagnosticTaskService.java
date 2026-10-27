@@ -86,7 +86,11 @@ public class DiagnosticTaskService {
         return new DiagnosticTask(task.userTaskKey, task.processInstanceKey, task.assignee,
                 DiagnosticRequestContext.text(vars, "patientID"), DiagnosticRequestContext.text(vars, "patientData"),
                 DiagnosticRequestContext.text(vars, "diagnosiCode"), request, contextError, proposed, proposalMessage,
-                saved == null ? null : decisionView(saved));
+                saved == null ? null : decisionView(saved),
+                saved == null || saved.getReportText() == null ? null : DiagnosticReportService.view(saved),
+                saved != null && saved.getSlot() != null && saved.getReportText() == null && contextError == null
+                        && (saved.getSlot().getStatus() == SlotStatus.BOOKED || saved.getSlot().getStatus() == SlotStatus.IN_PROGRESS)
+                        && !saved.getSlot().getEndTime().isAfter(LocalDateTime.now()));
     }
 
     public SpecialistTaskService.TaskActionResult claim(String key) throws Exception {
@@ -199,7 +203,8 @@ public class DiagnosticTaskService {
 
     public record DiagnosticTask(String taskKey, String processInstanceKey, String assignee, String patientID,
             String patientData, String diagnosiCode, DiagnosticRequestContext request, String contextError,
-            SlotSuggestion proposal, String proposalMessage, DecisionView decision) {}
+            SlotSuggestion proposal, String proposalMessage, DecisionView decision,
+            DiagnosticReportService.ReportView report, boolean reportAllowed) {}
     public record DecisionView(DiagnosticBookingCommand.Action action, String reason, String slotId,
             SlotSuggestion slot, SlotStatus slotStatus, LocalDateTime decidedAt) {}
     public record BookingResult(String status, DecisionView decision) {}

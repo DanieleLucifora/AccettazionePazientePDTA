@@ -9,6 +9,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface BookingSlotRepository extends JpaRepository<BookingSlot, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from BookingSlot s where s.id = :id")
+    java.util.Optional<BookingSlot> findByIdWithLock(@Param("id") Long id);
 
     /**
      * Trova gli slot attivi sovrapposti all'intervallo [start, end) per la risorsa data.
