@@ -11,6 +11,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class BpmnExamMappingsTests {
     @Test
+    void parallelLaboratoryTasksHaveLocalRequestersAndDirectRoleSpecificReturns() throws Exception {
+        var factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        try (var input = getClass().getResourceAsStream("/presa_in_carico_pdta.bpmn")) {
+            var document = factory.newDocumentBuilder().parse(input);
+            var xpath = javax.xml.xpath.XPathFactory.newInstance().newXPath();
+            for (var entry : Map.of("Activity_1nqhbxs", "CHIRURGHI", "Activity_diagnostic_oncologo", "ONCOLOGI").entrySet()) {
+                var task = (Element) xpath.evaluate("//*[@id='" + entry.getKey() + "']", document, javax.xml.xpath.XPathConstants.NODE);
+                var inputs = task.getElementsByTagNameNS("http://camunda.org/schema/zeebe/1.0", "input");
+                assertThat(inputs.getLength()).isEqualTo(1);
+                assertThat(((Element) inputs.item(0)).getAttribute("target")).isEqualTo("diagnosticRequestRole");
+                assertThat(((Element) inputs.item(0)).getAttribute("source")).isEqualTo(entry.getValue());
+                String returnFlow = task.getElementsByTagNameNS("http://www.omg.org/spec/BPMN/20100524/MODEL", "outgoing").item(0).getTextContent();
+                var flow = (Element) xpath.evaluate("//*[@id='" + returnFlow + "']", document, javax.xml.xpath.XPathConstants.NODE);
+                assertThat(flow.getAttribute("sourceRef")).isEqualTo(entry.getKey());
+                assertThat(flow.getAttribute("targetRef")).isEqualTo(entry.getValue().equals("CHIRURGHI") ? "Activity_14jdrgj" : "Activity_0vww6jw");
+                assertThat(flow.getElementsByTagNameNS("http://www.omg.org/spec/BPMN/20100524/MODEL", "conditionExpression").getLength()).isZero();
+            }
+            assertThat(xpath.evaluate("count(//*[@id='Gateway_1mpo32s'])", document)).isEqualTo("0");
+        }
+    }
+
+    @Test
     void specialistCompletionPropagatesRequesterIdentityAndQueueToLaboratory() throws Exception {
         var factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);

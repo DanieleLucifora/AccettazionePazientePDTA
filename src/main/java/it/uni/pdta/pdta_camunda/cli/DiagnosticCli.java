@@ -1,6 +1,9 @@
 package it.uni.pdta.pdta_camunda.cli;
 
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticBookingCommand;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticRequestContext;
+import it.uni.pdta.pdta_camunda.scheduling.service.DiagnosticBookingStore;
 import it.uni.pdta.pdta_camunda.model.OperatoreSanitario;
 import it.uni.pdta.pdta_camunda.model.TecnicoLaboratorio;
 import it.uni.pdta.pdta_camunda.scheduling.domain.entity.BookingSlot;
@@ -45,6 +48,7 @@ public class DiagnosticCli {
     private final OperatoreSanitario currentUser;
     private final BookingService bookingService;
     private final ResourceEventService resourceEventService;
+    private final DiagnosticBookingStore bookingStore;
 
     public DiagnosticCli() {
         this.restClient = new CamundaRestClient(CliEndpoints.restV2BaseUrl());
@@ -52,18 +56,9 @@ public class DiagnosticCli {
         this.handledTaskKeys = new HashSet<>();
         // Simuliamo un utente generico di laboratorio, usando la classe concreta
         this.currentUser = new TecnicoLaboratorio("LAB001", "Mario", "Neri", "Laboratorio Analisi");
-        BookingService service;
-        ResourceEventService eventService;
-        try {
-            service = SchedulingCliSupport.getBookingService();
-            eventService = SchedulingCliSupport.getResourceEventService();
-        } catch (Exception e) {
-            service = null;
-            eventService = null;
-            System.err.println("[WARN] Scheduling service non disponibile: " + e.getMessage());
-        }
-        this.bookingService = service;
-        this.resourceEventService = eventService;
+        this.bookingService = SchedulingCliSupport.getBookingService();
+        this.resourceEventService = SchedulingCliSupport.getResourceEventService();
+        this.bookingStore = SchedulingCliSupport.getDiagnosticBookingStore();
     }
 
     public static void main(String[] args) throws Exception {
@@ -111,7 +106,7 @@ public class DiagnosticCli {
                     taskFound = true;
                     
                     // Recupera variabili aggiornate
-                    targetTask.variables = restClient.getTaskVariables(targetTask.userTaskKey);
+                    targetTask.variables = restClient.getTypedTaskVariables(targetTask.userTaskKey);
                     processTask(targetTask);
 
                     // Chiedi se continuare
@@ -152,11 +147,13 @@ public class DiagnosticCli {
 
         System.out.println(colorize("=== RICHIESTA ESAME ===", Color.BLUE));
 
-        boolean oncologoPending = asBoolean(task.variables.get("oncologoRequiresExam"));
-        boolean chirurgoPending = asBoolean(task.variables.get("chirurgoRequiresExam"));
-
         String examQueue = normalizeQueue(task.variables.get("examQueue"));
-        String requesterRole = pickNextRequester(examQueue, oncologoPending, chirurgoPending);
+        var requestContext = DiagnosticRequestContext.from(task.elementId, task.variables);
+        String requesterRole = requestContext.requesterRole();
+        var savedDecision = bookingStore.find(task.userTaskKey).orElse(null);
+        if (savedDecision != null && !requesterRole.equals(savedDecision.getRequesterRole())) {
+            throw new IllegalStateException("Decisione salvata per un altro richiedente: verificare il task.");
+        }
         if (!ROLE_ONCOLOGI.equals(requesterRole) && !ROLE_CHIRURGHI.equals(requesterRole)) {
             System.out.println(colorize("Nessuna richiesta esami pendente: task obsoleto, skip.", Color.YELLOW));
             return;
@@ -198,7 +195,17 @@ public class DiagnosticCli {
         if (specialistSelection.hasSelection()) {
             System.out.println("Selezione specialista: " + colorize(specialistSelection.toDisplay(), Color.CYAN));
         }
-        if (bookingService != null && requestedExamType != null && requestedBodyPart != null) {
+        if (savedDecision != null) {
+            if (savedDecision.getSlot() != null
+                    && savedDecision.getSlot().getStatus() != it.uni.pdta.pdta_camunda.scheduling.domain.enums.SlotStatus.BOOKED) {
+                throw new IllegalStateException("Prenotazione salvata non piu' attiva: verificare prima di refertare.");
+            }
+            bookingDecision = new BookingDecision(savedDecision.getSlot(), null,
+                    savedDecision.getAction() == DiagnosticBookingCommand.Action.MODIFY,
+                    savedDecision.getAction() == DiagnosticBookingCommand.Action.REJECT, savedDecision.getReason());
+            System.out.println("Decisione diagnostica gia' salvata: " + savedDecision.getAction());
+        } else if (bookingService != null && requestedExamType != null && requestedBodyPart != null) {
+            restClient.claimTask(task.userTaskKey, currentUser.getId());
             bookingDecision = scheduleSlot(
                     task,
                     requesterRole,
@@ -209,6 +216,7 @@ public class DiagnosticCli {
                     requestedBodyPart,
                     specialistSelection
             );
+            if (bookingDecision == null) return;
         }
         System.out.println();
 
@@ -269,7 +277,7 @@ public class DiagnosticCli {
 
         Map<String, Object> auditMetadata = buildAuditMetadata(requesterRole, requesterId, requesterName);
 
-        if (bookingDecision.modified) {
+        if (bookingDecision.modified && bookingStore.find(task.userTaskKey).isEmpty()) {
             resourceEventService.logSlotRescheduled(
                     bookingDecision.slot,
                     currentUser.getId(),
@@ -350,7 +358,7 @@ public class DiagnosticCli {
 
         System.out.print("Invio referto... ");
         try {
-            restClient.assignTask(task.userTaskKey, currentUser.getId());
+            restClient.claimTask(task.userTaskKey, currentUser.getId());
             restClient.completeTask(task.userTaskKey, completeVariables);
             handledTaskKeys.add(task.userTaskKey);
             System.out.println(colorize("COMPLETATO", Color.GREEN));
@@ -398,6 +406,9 @@ public class DiagnosticCli {
                 return null;
             }
             rejected = true;
+            bookingStore.save(task.userTaskKey, task.processInstanceKey, patientId,
+                    DiagnosticRequestContext.from(task.elementId, task.variables),
+                    new DiagnosticBookingCommand(DiagnosticBookingCommand.Action.REJECT, null, null, reason), null);
             return new BookingDecision(null, proposed, false, true, reason);
         }
 
@@ -418,19 +429,11 @@ public class DiagnosticCli {
         }
 
         try {
-            BookingSlot slot = bookingService.bookSlot(
-                    selected.getResourceId(),
-                    selected.getProtocolId(),
-                    selected.getStartTime(),
-                    parseProcessInstanceKey(task.processInstanceKey),
-                    patientId,
-                    requesterRole,
-                    buildAuditMetadata(
-                            requesterRole,
-                            resolveRequesterId(task.variables, requesterRole),
-                            resolveRequesterName(task.variables, requesterRole)
-                    )
-            );
+            BookingSlot slot = bookingStore.save(
+                    task.userTaskKey, task.processInstanceKey, patientId,
+                    DiagnosticRequestContext.from(task.elementId, task.variables),
+                    new DiagnosticBookingCommand(modified ? DiagnosticBookingCommand.Action.MODIFY : DiagnosticBookingCommand.Action.CONFIRM,
+                            selected.getResourceId(), selected.getStartTime(), reason), selected).getSlot();
             System.out.println(colorize("Esame pianificato: " + selected.toCliDisplay(), Color.GREEN));
             return new BookingDecision(slot, selected, modified, rejected, reason);
         } catch (SlotConflictException e) {

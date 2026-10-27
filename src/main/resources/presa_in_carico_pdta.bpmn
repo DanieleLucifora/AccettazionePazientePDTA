@@ -16,8 +16,7 @@
         <bpmn:flowNodeRef>Activity_14jdrgj</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Activity_0vww6jw</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Activity_1nqhbxs</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>Gateway_1mpo32s</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>Event_169861v</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_diagnostic_oncologo</bpmn:flowNodeRef>
       </bpmn:lane>
       <bpmn:lane id="Lane_09t715s" name="Segreteria/Case Manager">
         <bpmn:flowNodeRef>Gateway_1ihffga</bpmn:flowNodeRef>
@@ -208,10 +207,24 @@
         <zeebe:userTask />
         <zeebe:formDefinition formId="esami-diagnostici-form" />
         <zeebe:assignmentDefinition candidateGroups="LABORATORIO" />
+        <zeebe:ioMapping>
+          <zeebe:input source="CHIRURGHI" target="diagnosticRequestRole" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0d4n5wv</bpmn:incoming>
+      <bpmn:outgoing>Flow_1u8dzo2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Activity_diagnostic_oncologo" name="Esami Diagnostici Oncologo">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="esami-diagnostici-form" />
+        <zeebe:assignmentDefinition candidateGroups="LABORATORIO" />
+        <zeebe:ioMapping>
+          <zeebe:input source="ONCOLOGI" target="diagnosticRequestRole" />
+        </zeebe:ioMapping>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1qbedqe</bpmn:incoming>
-      <bpmn:incoming>Flow_0d4n5wv</bpmn:incoming>
-      <bpmn:outgoing>Flow_04ryres</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1iynwcx</bpmn:outgoing>
     </bpmn:userTask>
     <bpmn:sequenceFlow id="Flow_1sgfmam" sourceRef="Gateway_1cen30q" targetRef="Gateway_19cyy5g" />
     <bpmn:sequenceFlow id="Flow_0oqk61t" name="Accettato" sourceRef="Gateway_19cyy5g" targetRef="Activity_1q4rmtc">
@@ -230,27 +243,11 @@
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=chirurgoRequiresExam = true</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_1hderpt" sourceRef="Activity_0vww6jw" targetRef="Gateway_13pnlce" />
-    <bpmn:sequenceFlow id="Flow_1qbedqe" name="Richiesta Esami" sourceRef="Gateway_13pnlce" targetRef="Activity_1nqhbxs">
+    <bpmn:sequenceFlow id="Flow_1qbedqe" name="Richiesta Esami" sourceRef="Gateway_13pnlce" targetRef="Activity_diagnostic_oncologo">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=oncologoRequiresExam = true</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:exclusiveGateway id="Gateway_1mpo32s" default="Flow_1dsqzvx">
-      <bpmn:incoming>Flow_04ryres</bpmn:incoming>
-      <bpmn:outgoing>Flow_1iynwcx</bpmn:outgoing>
-      <bpmn:outgoing>Flow_1u8dzo2</bpmn:outgoing>
-      <bpmn:outgoing>Flow_1dsqzvx</bpmn:outgoing>
-    </bpmn:exclusiveGateway>
-    <bpmn:sequenceFlow id="Flow_04ryres" sourceRef="Activity_1nqhbxs" targetRef="Gateway_1mpo32s" />
-    <bpmn:sequenceFlow id="Flow_1iynwcx" sourceRef="Gateway_1mpo32s" targetRef="Activity_0vww6jw">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=requesterRole = "ONCOLOGI"</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_1u8dzo2" sourceRef="Gateway_1mpo32s" targetRef="Activity_14jdrgj">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=requesterRole = "CHIRURGHI"</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_1dsqzvx" sourceRef="Gateway_1mpo32s" targetRef="Event_169861v" />
-    <bpmn:endEvent id="Event_169861v" name="Errore Routing Referto">
-      <bpmn:extensionElements />
-      <bpmn:incoming>Flow_1dsqzvx</bpmn:incoming>
-    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1iynwcx" sourceRef="Activity_diagnostic_oncologo" targetRef="Activity_0vww6jw" />
+    <bpmn:sequenceFlow id="Flow_1u8dzo2" sourceRef="Activity_1nqhbxs" targetRef="Activity_14jdrgj" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_19hopiw">
@@ -343,14 +340,9 @@
         <dc:Bounds x="691" y="537" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Gateway_1mpo32s_di" bpmnElement="Gateway_1mpo32s" isMarkerVisible="true">
-        <dc:Bounds x="716" y="455" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_169861v_di" bpmnElement="Event_169861v">
-        <dc:Bounds x="1052" y="442" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1034" y="485" width="72" height="27" />
-        </bpmndi:BPMNLabel>
+      <bpmndi:BPMNShape id="Activity_diagnostic_oncologo_di" bpmnElement="Activity_diagnostic_oncologo">
+        <dc:Bounds x="1060" y="630" width="100" height="80" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1xx7abx_di" bpmnElement="Flow_1xx7abx">
         <di:waypoint x="766" y="1103" />
@@ -471,33 +463,24 @@
         <di:waypoint x="912" y="688" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1qbedqe_di" bpmnElement="Flow_1qbedqe">
-        <di:waypoint x="887" y="713" />
-        <di:waypoint x="741" y="713" />
-        <di:waypoint x="741" y="617" />
+        <di:waypoint x="937" y="713" />
+        <di:waypoint x="1110" y="713" />
+        <di:waypoint x="1110" y="710" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="770" y="696" width="79" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_04ryres_di" bpmnElement="Flow_04ryres">
-        <di:waypoint x="741" y="537" />
-        <di:waypoint x="741" y="505" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1iynwcx_di" bpmnElement="Flow_1iynwcx">
-        <di:waypoint x="766" y="480" />
+        <di:waypoint x="1110" y="630" />
+        <di:waypoint x="1110" y="480" />
         <di:waypoint x="912" y="480" />
         <di:waypoint x="912" y="537" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1u8dzo2_di" bpmnElement="Flow_1u8dzo2">
-        <di:waypoint x="716" y="480" />
+        <di:waypoint x="741" y="537" />
+        <di:waypoint x="741" y="480" />
         <di:waypoint x="575" y="480" />
         <di:waypoint x="575" y="537" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1dsqzvx_di" bpmnElement="Flow_1dsqzvx">
-        <di:waypoint x="746" y="460" />
-        <di:waypoint x="1052" y="460" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="764" y="431" width="72" height="27" />
-        </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

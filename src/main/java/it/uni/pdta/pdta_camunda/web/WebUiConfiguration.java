@@ -5,6 +5,8 @@ import it.uni.pdta.pdta_camunda.registration.PatientRegistrationService;
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamService;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticTaskService;
+import it.uni.pdta.pdta_camunda.scheduling.service.DiagnosticBookingStore;
 import it.uni.pdta.pdta_camunda.scheduling.service.BookingService;
 import it.uni.pdta.pdta_camunda.scheduling.service.ResourceEventService;
 import it.uni.pdta.pdta_camunda.scheduling.domain.repository.ExamProtocolRepository;
@@ -40,5 +42,11 @@ public class WebUiConfiguration {
     DiagnosticExamService diagnosticExamService(SpecialistTaskService tasks, CamundaRestClient rest,
             BookingService booking, ExamProtocolRepository protocols, ResourceEventService events) {
         return new DiagnosticExamService(tasks, rest, booking, protocols, events);
+    }
+
+    @Bean
+    DiagnosticTaskService diagnosticTaskService(CamundaRestClient rest, DiagnosticExamService exams,
+            DiagnosticBookingStore store) {
+        return new DiagnosticTaskService(rest, exams, store);
     }
 }

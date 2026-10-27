@@ -189,6 +189,13 @@ public class BookingService {
         ExamProtocol protocol = protocolRepository.findById(examProtocolId)
                 .orElseThrow(() -> new IllegalArgumentException("Protocollo non trovato: " + examProtocolId));
 
+        if (resource.getStatus() != ResourceStatus.AVAILABLE
+                || !resource.getSupportedExamTypes().contains(protocol.getExamType())
+                || protocolRepository.findActiveByExamTypeAndBodyPart(protocol.getExamType(), protocol.getBodyPart(), LocalDate.now())
+                        .stream().findFirst().filter(active -> active.getId().equals(protocol.getId())).isEmpty()) {
+            throw new SlotConflictException("Risorsa o protocollo non piu' disponibili. Aggiorna il calendario.");
+        }
+
         LocalDateTime endTime = startTime.plusMinutes(protocol.getTotalSlotMinutes());
 
         List<BookingSlot> overlapping = bookingSlotRepository.findOverlapping(

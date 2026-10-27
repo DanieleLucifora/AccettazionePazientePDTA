@@ -31,6 +31,7 @@ class PortalControllerTests {
     @MockitoBean PatientRegistrationService registration;
     @MockitoBean SpecialistTaskService tasks;
     @MockitoBean DiagnosticExamService exams;
+    @MockitoBean it.uni.pdta.pdta_camunda.workflow.DiagnosticTaskService diagnostics;
 
     @Test
     void examRoutesValidateDatesEnumsAndRequestShape() throws Exception {

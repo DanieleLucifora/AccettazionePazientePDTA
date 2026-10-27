@@ -2,11 +2,13 @@ import { useState } from 'react';
 import type { Role } from './api';
 import { RegistrationForm } from './RegistrationForm';
 import { SpecialistTasks } from './SpecialistTasks';
+import { DiagnosticTasks } from './DiagnosticTasks';
 
 const operators: Record<Role, { label: string; name: string; initials: string }> = {
   CASE_MANAGER: { label: 'Case Manager', name: 'Giulia Verdi', initials: 'GV' },
   CHIRURGHI: { label: 'Chirurgo', name: 'Marco Bianchi', initials: 'MB' },
   ONCOLOGI: { label: 'Oncologo', name: 'Luigi Rossi', initials: 'LR' },
+  LABORATORIO: { label: 'Diagnostica', name: 'Mario Neri', initials: 'MN' },
 };
 
 export default function App() {
@@ -18,7 +20,8 @@ export default function App() {
         <a className="brand" href="/"><span className="brand-mark">+</span><span>PDTA<small>Portale operatori</small></span></a>
         <div className="nav-label">AREA OPERATIVA</div>
         <nav aria-label="Area operativa">
-          <span className="nav-item active" aria-current="page">{role === 'CASE_MANAGER' ? 'Registrazione paziente' : 'Attivita\' specialistiche'}</span>
+          <span className="nav-item active" aria-current="page">{role === 'CASE_MANAGER' ? 'Registrazione paziente'
+            : role === 'LABORATORIO' ? 'Richieste diagnostiche' : 'Attivita\' specialistiche'}</span>
         </nav>
         <div className="sidebar-note"><strong>Un percorso, piu' competenze</strong>
           <p>Accettazione e valutazione multidisciplinare del paziente.</p></div>
@@ -36,20 +39,23 @@ export default function App() {
             <label>Vista operatore
               <select value={role} onChange={event => {
                 const value = event.target.value;
-                if (value === 'CASE_MANAGER' || value === 'CHIRURGHI' || value === 'ONCOLOGI') setRole(value);
+                if (value === 'CASE_MANAGER' || value === 'CHIRURGHI' || value === 'ONCOLOGI' || value === 'LABORATORIO') setRole(value);
               }}>
                 {Object.entries(operators).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}
               </select>
             </label>
           </div>
           <div className="page-heading"><div className="eyebrow">WORKFLOW CLINICO</div>
-            <h1>{role === 'CASE_MANAGER' ? 'Ogni percorso inizia dalla presa in carico.' : 'Le valutazioni del tuo gruppo.'}</h1>
+            <h1>{role === 'CASE_MANAGER' ? 'Ogni percorso inizia dalla presa in carico.'
+              : role === 'LABORATORIO' ? 'Organizza gli approfondimenti diagnostici.' : 'Le valutazioni del tuo gruppo.'}</h1>
             <p>{role === 'CASE_MANAGER'
               ? 'Avvia il percorso del paziente. Camunda coordina i passaggi successivi.'
-              : 'Consulta i pazienti in attesa della valutazione specialistica.'}</p></div>
-          {role === 'CASE_MANAGER' ? <RegistrationForm /> : <SpecialistTasks key={role} role={role} />}
+              : role === 'LABORATORIO' ? 'Gestisci richieste e prenotazioni del laboratorio.'
+                : 'Consulta i pazienti in attesa della valutazione specialistica.'}</p></div>
+          {role === 'CASE_MANAGER' ? <RegistrationForm /> : role === 'LABORATORIO' ? <DiagnosticTasks />
+            : <SpecialistTasks key={role} role={role} />}
           <footer className="page-footer">PDTA · Workflow di accettazione paziente
-            <span>Gestione diagnostica e prenotazione definitiva: disponibili nella CLI.</span></footer>
+            <span>Refertazione diagnostica: disponibile nella CLI.</span></footer>
         </main>
       </div>
     </div>

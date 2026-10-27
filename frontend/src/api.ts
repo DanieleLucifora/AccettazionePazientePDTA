@@ -1,5 +1,5 @@
 export type SpecialistRole = 'CHIRURGHI' | 'ONCOLOGI';
-export type Role = 'CASE_MANAGER' | SpecialistRole;
+export type Role = 'CASE_MANAGER' | SpecialistRole | 'LABORATORIO';
 
 export interface RegistrationInput {
   patientID: string;
@@ -58,6 +58,55 @@ export interface ExamSlot {
   startTime: string;
   endTime: string;
 }
+export interface DiagnosticRequest {
+  requesterRole: SpecialistRole;
+  requesterId: string;
+  requesterName: string;
+  examType: string;
+  bodyPart: string;
+  schedulingPreference: string;
+  note: string;
+  proposedStart: string;
+  proposedResourceId: string;
+}
+export interface DiagnosticDecision {
+  action: 'CONFIRM' | 'MODIFY' | 'REJECT';
+  reason: string;
+  slotId: string | null;
+  slot: ExamSlot | null;
+  slotStatus: string | null;
+  decidedAt: string;
+}
+export interface DiagnosticTask {
+  taskKey: string;
+  processInstanceKey: string;
+  assignee: string | null;
+  patientID: string;
+  patientData: string;
+  diagnosiCode: string;
+  request: DiagnosticRequest | null;
+  contextError: string | null;
+  proposal: ExamSlot | null;
+  proposalMessage: string | null;
+  decision: DiagnosticDecision | null;
+}
+export interface DiagnosticBookingCommand {
+  action: DiagnosticDecision['action'];
+  resourceId: number | null;
+  startTime: string | null;
+  reason: string;
+}
+export const getDiagnosticTasks = (signal: AbortSignal): Promise<DiagnosticTask[]> =>
+  request('/diagnostics/tasks', { signal });
+export const getDiagnosticTask = (key: string, signal: AbortSignal): Promise<DiagnosticTask> =>
+  request(`/diagnostics/tasks/${encodeURIComponent(key)}`, { signal });
+export const claimDiagnosticTask = (key: string): Promise<TaskActionResult> =>
+  request(`/diagnostics/tasks/${encodeURIComponent(key)}/claim`, { method: 'POST' });
+export const bookDiagnosticTask = (key: string, command: DiagnosticBookingCommand):
+  Promise<{ status: 'BOOKED' | 'COMPLETED'; decision: DiagnosticDecision }> =>
+  request(`/diagnostics/tasks/${encodeURIComponent(key)}/booking`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+  });
 export interface DiagnosticExamRequest extends ExamOption {
   schedulingPreference: 'AUTO_FIRST_AVAILABLE' | 'MANUAL_CALENDAR';
   resourceId: number | null;
@@ -70,7 +119,7 @@ export function getExamOptions(signal: AbortSignal): Promise<ExamOptions> {
 }
 
 export function getExamSlots(option: ExamOption, day: string, signal: AbortSignal): Promise<ExamSlot[]> {
-  const params = new URLSearchParams({ ...option, day });
+  const params = new URLSearchParams({ examType: option.examType, bodyPart: option.bodyPart, day });
   return request(`/exams/slots?${params}`, { signal });
 }
 

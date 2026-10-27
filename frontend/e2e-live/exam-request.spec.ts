@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIResponse } from '@playwright/test';
 import type { ExamSlot } from '../src/api';
 
 const camunda = process.env.PDTA_CAMUNDA_URL || 'http://127.0.0.1:8080';
@@ -72,11 +72,15 @@ for (const [mode, role, prefix] of [
         laboratory = body.items.find(task => task.candidateGroups?.includes('LABORATORIO'));
         return Boolean(laboratory);
       }, { timeout: 30000, intervals: [1000, 2000, 3000] }).toBe(true);
-      const variablesResponse = await request.post(`${camunda}/v2/user-tasks/${laboratory!.userTaskKey}/variables/search`,
-        { data: { page: { limit: 100 } } });
-      expect(variablesResponse.ok()).toBe(true);
+      let variablesResponse: APIResponse | undefined;
+      await expect.poll(async () => {
+        variablesResponse = await request.post(`${camunda}/v2/user-tasks/${laboratory!.userTaskKey}/variables/search`,
+          { data: { page: { limit: 100 } } });
+        if (!variablesResponse.ok()) console.warn(`Laboratory variables indexing ${variablesResponse.status()}: ${await variablesResponse.text()}`);
+        return variablesResponse.ok();
+      }, { timeout: 30000, intervals: [1000, 2000, 3000] }).toBe(true);
       const body: { items: { name: string; value: string }[]; page: { hasMoreTotalItems: boolean } }
-        = await variablesResponse.json();
+        = await variablesResponse!.json();
       expect(body.page.hasMoreTotalItems).toBe(false);
       const variables = new Map<string, unknown>(body.items.map(item => [item.name, JSON.parse(item.value)]));
       expect(variables.get(`${prefix}RequiresExam`)).toBe(true);

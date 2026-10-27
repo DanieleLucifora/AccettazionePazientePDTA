@@ -3,6 +3,7 @@ package it.uni.pdta.pdta_camunda.cli;
 import it.uni.pdta.pdta_camunda.PdtaCamundaApplication;
 import it.uni.pdta.pdta_camunda.scheduling.service.BookingService;
 import it.uni.pdta.pdta_camunda.scheduling.service.ResourceEventService;
+import it.uni.pdta.pdta_camunda.scheduling.service.DiagnosticBookingStore;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -41,5 +42,10 @@ public final class SchedulingCliSupport {
             getBookingService();
         }
         return context.getBean(ResourceEventService.class);
+    }
+
+    public static synchronized DiagnosticBookingStore getDiagnosticBookingStore() {
+        if (context == null) getBookingService();
+        return context.getBean(DiagnosticBookingStore.class);
     }
 }

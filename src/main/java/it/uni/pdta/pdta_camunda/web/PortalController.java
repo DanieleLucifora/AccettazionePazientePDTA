@@ -7,6 +7,8 @@ import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
 import it.uni.pdta.pdta_camunda.workflow.SpecialistDecision;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamRequest;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticExamService;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticTaskService;
+import it.uni.pdta.pdta_camunda.workflow.DiagnosticBookingCommand;
 import it.uni.pdta.pdta_camunda.scheduling.domain.enums.ExamType;
 import it.uni.pdta.pdta_camunda.scheduling.domain.enums.BodyPart;
 import it.uni.pdta.pdta_camunda.scheduling.service.dto.SlotSuggestion;
@@ -28,12 +30,14 @@ public class PortalController {
     private final PatientRegistrationService registrationService;
     private final SpecialistTaskService taskService;
     private final DiagnosticExamService exams;
+    private final DiagnosticTaskService diagnostics;
 
     public PortalController(PatientRegistrationService registrationService, SpecialistTaskService taskService,
-            DiagnosticExamService exams) {
+            DiagnosticExamService exams, DiagnosticTaskService diagnostics) {
         this.registrationService = registrationService;
         this.taskService = taskService;
         this.exams = exams;
+        this.diagnostics = diagnostics;
     }
 
     @PostMapping("/registrations")
@@ -90,5 +94,29 @@ public class PortalController {
             @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key,
             @RequestParam SpecialistRole role, @Valid @RequestBody DiagnosticExamRequest request) throws Exception {
         return exams.request(key, role, request);
+    }
+
+    @GetMapping("/diagnostics/tasks")
+    public List<DiagnosticTaskService.DiagnosticTask> diagnosticTasks() throws Exception {
+        return diagnostics.list();
+    }
+
+    @GetMapping("/diagnostics/tasks/{key}")
+    public DiagnosticTaskService.DiagnosticTask diagnosticTask(
+            @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key) throws Exception {
+        return diagnostics.detail(key);
+    }
+
+    @PostMapping("/diagnostics/tasks/{key}/claim")
+    public SpecialistTaskService.TaskActionResult claimDiagnosticTask(
+            @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key) throws Exception {
+        return diagnostics.claim(key);
+    }
+
+    @PostMapping("/diagnostics/tasks/{key}/booking")
+    public DiagnosticTaskService.BookingResult diagnosticBooking(
+            @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key,
+            @Valid @RequestBody DiagnosticBookingCommand command) throws Exception {
+        return diagnostics.decide(key, command);
     }
 }

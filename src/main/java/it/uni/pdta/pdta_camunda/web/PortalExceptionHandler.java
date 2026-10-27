@@ -23,6 +23,22 @@ import java.util.concurrent.CompletionException;
 public class PortalExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(PortalExceptionHandler.class);
 
+    @ExceptionHandler({it.uni.pdta.pdta_camunda.scheduling.service.SlotConflictException.class,
+            org.springframework.dao.DataIntegrityViolationException.class,
+            org.springframework.dao.ConcurrencyFailureException.class})
+    public ProblemDetail bookingConflict(Exception exception) {
+        LOG.warn("Conflitto nella prenotazione diagnostica", exception);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "La fascia o la decisione sono cambiate. Aggiorna il dettaglio prima di un nuovo invio.");
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public ProblemDetail storageFailure(Exception exception) {
+        LOG.error("Persistenza della prenotazione non confermata", exception);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Impossibile confermare il salvataggio. Verifica lo stato prima di riprovare.");
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail unavailableTask(ResponseStatusException exception) {
         LOG.warn("Dettaglio attivita' non disponibile: {}", exception.getStatusCode());
