@@ -35,3 +35,9 @@ build/
 ### Local runtime artifacts ###
 .DS_Store
 data/
+
+### Web UI ###
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/

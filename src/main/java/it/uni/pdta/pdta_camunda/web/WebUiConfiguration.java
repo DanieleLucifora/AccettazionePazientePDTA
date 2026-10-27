@@ -1,0 +1,34 @@
+package it.uni.pdta.pdta_camunda.web;
+
+import io.camunda.client.CamundaClient;
+import it.uni.pdta.pdta_camunda.registration.PatientRegistrationService;
+import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
+import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+
+import java.time.Duration;
+
+@Configuration
+@Profile("web-ui")
+public class WebUiConfiguration {
+    @Bean
+    CamundaRestClient workflowRestClient(RestTemplateBuilder builder,
+            @Value("${camunda.client.rest-address}") String restAddress) {
+        return new CamundaRestClient(restAddress.replaceAll("/+$", "") + "/v2",
+                builder.connectTimeout(Duration.ofSeconds(3)).readTimeout(Duration.ofSeconds(10)).build());
+    }
+
+    @Bean
+    PatientRegistrationService patientRegistrationService(CamundaClient client, CamundaRestClient restClient) {
+        return new PatientRegistrationService(client, restClient);
+    }
+
+    @Bean
+    SpecialistTaskService specialistTaskService(CamundaRestClient restClient) {
+        return new SpecialistTaskService(restClient);
+    }
+}

@@ -1,5 +1,6 @@
 package it.uni.pdta.pdta_camunda.cli;
 
+import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 import it.uni.pdta.pdta_camunda.model.OperatoreSanitario;
 import it.uni.pdta.pdta_camunda.model.TecnicoLaboratorio;
 import it.uni.pdta.pdta_camunda.scheduling.domain.entity.BookingSlot;

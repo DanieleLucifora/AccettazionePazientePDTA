@@ -1,13 +1,12 @@
 package it.uni.pdta.pdta_camunda.cli;
 
 import io.camunda.client.CamundaClient;
-import io.camunda.client.api.response.ProcessInstanceEvent;
 import it.uni.pdta.pdta_camunda.model.CaseManager;
+import it.uni.pdta.pdta_camunda.registration.PatientRegistrationService;
+import it.uni.pdta.pdta_camunda.registration.RegistrationRequest;
+import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Scanner;
 
 /**
@@ -25,7 +24,7 @@ import java.util.Scanner;
 public class CaseManagerCli {
 
     private final CamundaClient camundaClient;
-    private final CamundaRestClient restClient;
+    private final PatientRegistrationService registrationService;
     private final CaseManager currentUser;
 
     public CaseManagerCli() {
@@ -34,7 +33,8 @@ public class CaseManagerCli {
             .grpcAddress(URI.create(CliEndpoints.grpcAddress()))
             .restAddress(URI.create(CliEndpoints.restAddress()))
                 .build();
-        this.restClient = new CamundaRestClient(CliEndpoints.restV2BaseUrl());
+        this.registrationService = new PatientRegistrationService(camundaClient,
+                new CamundaRestClient(CliEndpoints.restV2BaseUrl()));
         
         // Login simulato
         this.currentUser = new CaseManager("CM001", "Giulia", "Verdi");
@@ -105,76 +105,25 @@ public class CaseManagerCli {
                 continue;
             }
 
-            // Prepara variabili
-            Map<String, Object> variables = new HashMap<>();
-            variables.put("patientID", patientID);
-            variables.put("patientData", patientData);
-            variables.put("diagnosiCode", diagnosiCode);
-            if (!clinicalFileUrl.isEmpty()) {
-                variables.put("clinicalFileUrl", clinicalFileUrl);
-            }
-            variables.put("caseManagerId", currentUser.getId()); // Tracciamo chi ha avviato
-
             try {
-                // 1. Avvia istanza processo
                 System.out.print("Avvio processo 'presa_in_carico_pdta'... ");
-                ProcessInstanceEvent instance = camundaClient.newCreateInstanceCommand()
-                        .bpmnProcessId("presa_in_carico_pdta")
-                        .latestVersion()
-                        .variables(variables)
-                        .send()
-                        .join();
-
+                var progress = registrationService.start(
+                        new RegistrationRequest(patientID, patientData, diagnosiCode, clinicalFileUrl),
+                        currentUser.getId());
                 System.out.println(colorize("Processo avviato con successo!", Color.GREEN));
-                System.out.println("Process Instance Key: " + instance.getProcessInstanceKey());
-
-                // 2. Cerca il task "Raccolta Dati Accesso" (User Task)
-                System.out.print("Ricerca task 'Raccolta Dati Accesso'... ");
-                Thread.sleep(3000); // Attesa propagazione
-
-                String processInstanceKey = String.valueOf(instance.getProcessInstanceKey());
-
-                CamundaRestClient.UserTask task = null;
+                System.out.println("Process Instance Key: " + progress.processInstanceKey());
+                System.out.print("Completamento raccolta dati accesso... ");
                 for (int i = 0; i < 10; i++) {
-                    List<CamundaRestClient.UserTask> tasks = restClient.searchTasks(Map.of());
-                    System.out.println(">>> Tentativo " + (i + 1) + "/10 - Task trovati: " + tasks.size());
-                    for (var t : tasks) {
-                        System.out.println("    - Task: '" + t.name + "' (ProcessInstance: " + t.processInstanceKey + ", State: " + t.state + ")");
-                    }
-                    for (var t : tasks) {
-                        if (t.processInstanceKey.equals(processInstanceKey) &&
-                            t.name.equals("Raccolta Dati Accesso") &&
-                            t.state.equals("CREATED")) {
-                            task = t;
-                            break;
-                        }
-                    }
-                    if (task != null) break;
+                    progress = registrationService.completeAccess(progress.processInstanceKey(), currentUser.getId());
+                    if (progress.status() == PatientRegistrationService.AccessStatus.COMPLETED) break;
                     Thread.sleep(1000);
                 }
-
-                if (task == null) {
-                    System.err.println("✗ Task 'Raccolta Dati Accesso' non trovato");
+                if (progress.status() != PatientRegistrationService.AccessStatus.COMPLETED) {
+                    System.err.println("Task non ancora disponibile. Il processo esiste gia': non reinserire il paziente.");
                     System.err.println("Verifica su Operate: " + CliEndpoints.operateUrl());
                     continue;
                 }
-
-                System.out.println(colorize("✓ Task trovato: " + task.name + " (Key: " + task.userTaskKey + ")", Color.GREEN));
-
-                // Assegna task
-                System.out.println(">>> Assegnazione task a 'demo'...");
-                restClient.assignTask(task.userTaskKey, "demo");
-                System.out.println(colorize("✓ Task assegnato", Color.GREEN));
-
-                // Completa task
-                System.out.println(">>> Completamento task con dati paziente...");
-                restClient.completeTask(task.userTaskKey, variables);
                 System.out.println(colorize("✓ Task 'Raccolta Dati Accesso' completato con successo!", Color.GREEN));
-
-                // Riepilogo finale
-                System.out.println();
-                System.out.println(colorize("Process Instance Key: " + instance.getProcessInstanceKey(), Color.GREEN));
-
                 System.out.println("\n Paziente inserito correttamente.");
 
                 // Chiedi se continuare con un altro paziente

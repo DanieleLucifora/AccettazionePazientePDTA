@@ -1,4 +1,4 @@
-package it.uni.pdta.pdta_camunda.cli;
+package it.uni.pdta.pdta_camunda.workflow;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,9 +21,35 @@ public class CamundaRestClient {
     private final ObjectMapper objectMapper;
 
     public CamundaRestClient(String baseUrl) {
+        this(baseUrl, new RestTemplate());
+    }
+
+    public CamundaRestClient(String baseUrl, RestTemplate restTemplate) {
         this.baseUrl = baseUrl;
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
+    }
+
+    public Map<String, Object> getTypedTaskVariables(String userTaskKey) throws Exception {
+        Map<String, Object> variables = new HashMap<>();
+        int offset = 0;
+        while (true) {
+            Map<String, Object> body = Map.of("page", Map.of("from", offset, "limit", 100));
+            JsonNode root = objectMapper.readTree(restTemplate.postForObject(
+                    baseUrl + "/user-tasks/" + userTaskKey + "/variables/search", body, String.class));
+            JsonNode items = root.path("items");
+            if (!items.isArray()) {
+                throw new IllegalStateException("Risposta variabili Camunda priva di items");
+            }
+            for (JsonNode item : items) {
+                Object value = objectMapper.readValue(item.path("value").asText(), Object.class);
+                variables.put(item.path("name").asText(), value);
+            }
+            offset += items.size();
+            if (items.size() < 100) {
+                return variables;
+            }
+        }
     }
 
     // Cerca user task con filtri
@@ -78,6 +104,9 @@ public class CamundaRestClient {
         ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
         JsonNode root = objectMapper.readTree(response.getBody());
         JsonNode itemsNode = root.path("items");
+        if (!itemsNode.isArray()) {
+            throw new IllegalStateException("Risposta task Camunda priva di items");
+        }
 
         List<UserTask> tasks = new ArrayList<>();
         if (itemsNode.isArray()) {

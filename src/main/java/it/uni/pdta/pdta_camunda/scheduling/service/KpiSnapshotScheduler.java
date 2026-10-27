@@ -14,7 +14,7 @@ public class KpiSnapshotScheduler {
     private final KpiSnapshotService kpiSnapshotService;
     private final KpiSnapshotProperties kpiSnapshotProperties;
 
-    @Scheduled(cron = "#{@kpiSnapshotProperties.dailyCron}")
+    @Scheduled(cron = "${pdta.kpi.daily-cron:0 10 0 * * *}")
     public void runDailySnapshot() {
         if (!kpiSnapshotProperties.isEnabled()) {
             log.debug("[KpiSnapshotScheduler] Job disabilitato via config pdta.kpi.enabled=false");
