@@ -4,6 +4,7 @@ import io.camunda.client.CamundaClient;
 import io.camunda.client.api.response.ProcessInstanceEvent;
 import it.uni.pdta.pdta_camunda.registration.RegistrationRequest;
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
+import it.uni.pdta.pdta_camunda.workflow.SpecialistDecision;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,18 +56,42 @@ class PortalHttpTests {
         verify(restClient).assignTask("access-42", "CM001");
 
         var specialist = new CamundaRestClient.UserTask();
-        specialist.userTaskKey = "surgeon-42";
+        specialist.userTaskKey = "43";
         specialist.processInstanceKey = "42";
         specialist.name = "Valutazione Chirurgo";
         specialist.state = "CREATED";
+        specialist.elementId = "Activity_14jdrgj";
         specialist.candidateGroups = List.of("CHIRURGHI");
         when(restClient.searchTasks(Map.of("filter", Map.of("state", "CREATED", "candidateGroup", "CHIRURGHI"))))
                 .thenReturn(List.of(specialist));
-        when(restClient.getTypedTaskVariables("surgeon-42")).thenReturn(input.variables("CM001"));
+        when(restClient.getTypedTaskVariables("43")).thenReturn(input.variables("CM001"));
+        when(restClient.searchTasks(Map.of("filter", Map.of("userTaskKey", "43"))))
+                .thenReturn(List.of(specialist));
         var tasks = http.getForEntity("/api/tasks?role=CHIRURGHI", String.class);
         assertThat(tasks.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(tasks.getBody()).contains("DEMO-HTTP", "Valutazione Chirurgo", "Paziente dimostrativo");
+        var detail = http.getForEntity("/api/tasks/43?role=CHIRURGHI", String.class);
+        assertThat(detail.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(detail.getBody()).contains("\"state\":\"CREATED\"", "DEMO-HTTP", "\"role\":\"CHIRURGHI\"");
+        assertThat(http.getForEntity("/api/tasks/43?role=ONCOLOGI", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(http.getForEntity("/api/tasks?role=ADMIN", String.class).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
+        var claim = http.postForEntity("/api/tasks/43/claim?role=CHIRURGHI", null, Map.class);
+        assertThat(claim.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(claim.getBody()).containsEntry("status", "CLAIMED").containsEntry("assignee", "CH001");
+        specialist.assignee = "CH001";
+        var decision = http.postForEntity("/api/tasks/43/decision?role=CHIRURGHI",
+                new SpecialistDecision(SpecialistDecision.Outcome.APPROVE, "Valutazione positiva"), Map.class);
+        assertThat(decision.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(decision.getBody()).containsEntry("status", "COMPLETED");
+        verify(restClient).completeTask("43", Map.of(
+                "isApproved", true, "requiresExam", false, "note", "Valutazione positiva",
+                "validatorId", "CH001", "validatorRole", "Chirurgo Toracica"));
+        specialist.state = "COMPLETED";
+        assertThat(http.postForEntity("/api/tasks/43/decision?role=CHIRURGHI",
+                new SpecialistDecision(SpecialistDecision.Outcome.APPROVE, ""), String.class).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+        verify(restClient, times(1)).completeTask(eq("43"), anyMap());
     }
 }

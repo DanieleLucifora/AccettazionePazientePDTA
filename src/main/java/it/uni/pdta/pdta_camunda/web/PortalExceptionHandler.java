@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.concurrent.CompletionException;
@@ -21,6 +22,12 @@ import java.util.concurrent.CompletionException;
 @Profile("web-ui")
 public class PortalExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(PortalExceptionHandler.class);
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ProblemDetail unavailableTask(ResponseStatusException exception) {
+        LOG.warn("Dettaglio attivita' non disponibile: {}", exception.getStatusCode());
+        return ProblemDetail.forStatusAndDetail(exception.getStatusCode(), exception.getReason());
+    }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HandlerMethodValidationException.class,
             MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class,

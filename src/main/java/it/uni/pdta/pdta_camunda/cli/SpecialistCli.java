@@ -1,6 +1,8 @@
 package it.uni.pdta.pdta_camunda.cli;
 
 import it.uni.pdta.pdta_camunda.workflow.CamundaRestClient;
+import it.uni.pdta.pdta_camunda.workflow.SpecialistDecision;
+import it.uni.pdta.pdta_camunda.workflow.SpecialistTaskService;
 import it.uni.pdta.pdta_camunda.model.Chirurgo;
 import it.uni.pdta.pdta_camunda.model.Oncologo;
 import it.uni.pdta.pdta_camunda.model.OperatoreSanitario;
@@ -226,6 +228,10 @@ public class SpecialistCli {
                 requiresExam = false;
                 System.out.print("Inserisci motivo rifiuto: ");
                 note = scanner.nextLine().trim();
+                if (note.isBlank()) {
+                    System.err.println("Motivazione obbligatoria. Operazione annullata.");
+                    return;
+                }
                 break;
             case "3":
                 isApproved = false; // Sospeso temporaneamente
@@ -286,6 +292,34 @@ public class SpecialistCli {
         
         if (confirm.equalsIgnoreCase("n")) {
             System.out.println("Operazione annullata. Il task rimane in attesa.");
+            return;
+        }
+
+        if (!requiresExam) {
+            var service = new SpecialistTaskService(restClient);
+            var role = SpecialistTaskService.SpecialistRole.valueOf(candidateGroup);
+            var decision = new SpecialistDecision(isApproved
+                    ? SpecialistDecision.Outcome.APPROVE : SpecialistDecision.Outcome.REJECT, note);
+            if (!decision.isValidDecision()) {
+                System.err.println("Esito non valido: motivazione obbligatoria per il rifiuto, massimo 2000 caratteri.");
+                return;
+            }
+            service.claim(task.userTaskKey, role, currentUser.getId());
+            System.out.println("Presa in carico inviata. Attendo la visibilita' dell'assegnazione...");
+            boolean assignmentVisible = false;
+            for (int attempt = 0; attempt < 10; attempt++) {
+                if (currentUser.getId().equals(service.getTask(task.userTaskKey, role).assignee())) {
+                    assignmentVisible = true;
+                    break;
+                }
+                Thread.sleep(1000);
+            }
+            if (!assignmentVisible) {
+                System.err.println("Assegnazione non ancora confermata. Riprovare sullo stesso task.");
+                return;
+            }
+            service.decide(task.userTaskKey, role, currentUser.getId(), currentUser.getRuolo(), decision);
+            System.out.println(colorize("COMPLETATO", Color.GREEN));
             return;
         }
 

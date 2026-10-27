@@ -19,7 +19,7 @@ Il flusso operativo prevede:
 *   **Orchestrator:** Camunda Platform 8 (Zeebe Engine)
 *   **Persistenza:** Spring Data JPA + H2 Database (embedded file-based)
 *   **Build Tool:** Maven
-*   **Web UI (primo incremento):** React + TypeScript, Vite e TanStack Query
+*   **Web UI:** React + TypeScript, Vite e TanStack Query
 
 ## Architettura del Sistema
 Il sistema è composto da:
@@ -33,20 +33,26 @@ Il sistema è composto da:
 *   **Registrazione condivisa**: `registration/PatientRegistrationService` e' usato dalla CLI Case Manager e dalle API web. Il client REST condiviso si trova in `workflow/`.
 *   **Portale web locale**: API abilitate solo con profilo Spring `web-ui`, con frontend in `frontend/`. Camunda rimane responsabile del processo; il browser non lo chiama direttamente.
 
-## Portale web — primo incremento
+## Portale web locale
 
 Disponibili:
 * inserimento paziente con riepilogo di conferma e avvio del processo con le variabili BPMN esistenti;
 * completamento separato del task di accesso, ripetibile senza avviare un nuovo processo;
 * selettore dimostrativo Case Manager / Chirurgo / Oncologo;
 * consultazione delle attivita' specialistiche, aggiornata ogni 5 secondi;
+* dettaglio attivita' con dati paziente, assegnazione, cartella clinica,
+  referto e note pertinenti al gruppo selezionato;
+* presa in carico senza sovrascrivere l'assegnazione ad altri operatori;
+* approvazione o rifiuto motivato con riepilogo e conferma esplicita dell'esito;
 * errori espliciti e recupero della chiave di una registrazione pendente nella stessa sessione del browser.
 
 **Non e' un login reale**: il selettore non implementa autorizzazioni. Il profilo web
 ascolta solo su `127.0.0.1`; non esporlo in rete e usa esclusivamente dati fittizi.
 Le API di registrazione usano l'identita' dimostrativa `CM001`, anche per l'assegnazione
 del task iniziale (prima la CLI lo assegnava a `demo`).
-Approvazioni, richieste esami, agenda e refertazione rimangono nelle CLI.
+Gli specialisti simulati sono `CH001` (chirurgo) e `ON001` (oncologo), scelti dal
+backend per il ruolo selezionato, non dal corpo della richiesta.
+Richieste esami, agenda e refertazione rimangono nelle CLI.
 I dati paziente restano variabili Camunda: questo incremento non introduce un'anagrafica
 o una lista persistente dei casi nel database applicativo.
 
@@ -107,15 +113,60 @@ eseguito prima del packaging. Senza il profilo Spring le API del portale non son
 | POST | `/api/registrations/{key}/complete-access` | `200`, `WAITING` oppure `COMPLETED` per la sola raccolta dati iniziale |
 | GET | `/api/tasks?role=CHIRURGHI` | Task aperti del gruppo con dati paziente |
 | GET | `/api/tasks?role=ONCOLOGI` | Task aperti del gruppo con dati paziente |
+| GET | `/api/tasks/{key}?role=CHIRURGHI` | Dettaglio del task aperto del gruppo (anche `ONCOLOGI`) |
+| POST | `/api/tasks/{key}/claim?role=CHIRURGHI` | `200`, `CLAIMED`, assegnazione confermata dal broker (anche `ONCOLOGI`) |
+| POST | `/api/tasks/{key}/decision?role=CHIRURGHI` | `200`, `COMPLETED`, task completato dal broker (anche `ONCOLOGI`) |
+
+Il pulsante **Apri dettaglio** mostra una scheda dedicata, aggiornata ogni 5 secondi,
+con ritorno alla lista. La sola apertura del dettaglio non assegna o completa il task.
+Il backend verifica chiave e gruppo prima di caricare le variabili: restituisce
+`404` se il task non e' visibile nel gruppo e `409` se non e' piu' aperto.
+Se una verifica fallisce, i precedenti dati del dettaglio vengono nascosti.
+Questa selezione per gruppo non sostituisce le autorizzazioni di un login reale.
+
+Il referto usa `chirurgoExamResult` o `oncologoExamResult`; il vecchio `examResult`
+e' usato solo se `requesterRole` identifica il gruppo corrente, per non mostrare
+il referto dell'altro specialista. Le note usano `chirurgoNote` o `oncologoNote`.
+Solo indirizzi assoluti HTTP/HTTPS senza credenziali diventano link alla cartella
+clinica, aperti in una nuova scheda; indirizzi non utilizzabili vengono omessi
+con un avviso nei log, senza riportare l'URL.
+
+### Presa in carico e valutazione
+
+Usa **Prendi in carico** e attendi che l'assegnazione sia visibile nel dettaglio.
+Solo il task assegnato all'operatore corrente consente l'invio dell'esito; quello
+assegnato ad altri rimane consultabile senza comandi. L'assegnazione usa
+`allowOverride: false`, anche prima del completamento per ricontrollarla sul broker.
+Questi comandi separati non costituiscono una transazione atomica con eventuali
+riassegnazioni eseguite da altri client.
+
+Il corpo della decisione e' `{"outcome":"APPROVE","note":"..."}` oppure
+`{"outcome":"REJECT","note":"Motivazione obbligatoria"}`. Le note hanno limite
+di 2000 caratteri; spazi iniziali/finali vengono rimossi. **Rivedi esito** non invia
+comandi: il task viene completato solo con **Conferma e invia esito**.
+CLI e web condividono il servizio di valutazione e il payload BPMN
+(`isApproved`, `requiresExam: false`, `note`, `validatorId`, `validatorRole`);
+la richiesta di esami continua a usare il percorso CLI esistente.
+
+I comandi verificano anche l'elemento BPMN previsto per il ruolo. Task chiusi,
+assegnazioni incompatibili o comandi rifiutati per stato non attuale restituiscono
+`409`. Non viene ritentato automaticamente un comando dall'esito incerto: verifica
+lo stato prima di un nuovo invio. Un completamento ripetuto e' un conflitto, non
+un nuovo successo. Camunda indicizza in modo asincrono: lista e assegnazione possono
+aggiornarsi qualche secondo dopo la conferma del comando.
 
 `COMPLETED` non significa paziente accettato: indica solo il completamento del task
-di accesso. Input non validi restituiscono `400`; errori di integrazione sono esposti
+di accesso o della singola valutazione. Il BPMN esistente mantiene parallele le due
+valutazioni: un rifiuto raggiunge **Esclusione Paziente**, ma non termina
+automaticamente l'altro ramo. Questo incremento non cambia tale comportamento.
+Firme e generazione documento sono simulate: non viene creato un PDF scaricabile.
+Input non validi restituiscono `400`; errori di integrazione sono esposti
 come `502` con `ProblemDetail`, senza trasformarli in liste vuote o successi.
 
-### Verifiche del primo incremento
+### Verifiche del portale
 
 ```bash
-./mvnw -Dtest=PatientRegistrationServiceTests,WorkflowClientTests,PortalControllerTests,PortalHttpTests test
+./mvnw -Dtest=PatientRegistrationServiceTests,WorkflowClientTests,SpecialistTaskServiceTests,SpecialistDecisionTests,PortalControllerTests,PortalHttpTests test
 cd frontend
 npm test
 npm run build
@@ -139,13 +190,16 @@ cd frontend
 npm run test:live
 ```
 
-Il test usa per default `http://127.0.0.1:8081` e Camunda su
+I test usano per default `http://127.0.0.1:8081` e Camunda su
 `http://127.0.0.1:8080`; gli indirizzi possono essere impostati tramite
 `PDTA_LIVE_URL` e `PDTA_CAMUNDA_URL`. Non avvia o arresta i servizi.
-Crea un paziente fittizio `GUI-TEST-*`, verifica conferma, registrazione,
+Crea pazienti fittizi `GUI-TEST-*` e `GUI-ACTION-*`, verifica conferma, registrazione,
 visibilita' in entrambi i gruppi, persistenza dopo refresh e ripetizione del
-completamento accesso. Al termine cancella esclusivamente l'istanza creata
-dal test: la traccia storica resta visibile in Camunda.
+completamento accesso. Verifica inoltre presa in carico, approvazione di entrambi
+gli specialisti fino alle firme e alla generazione documento simulate, rifiuto
+motivato e blocco di un invio ripetuto. Controlla variabili ed elementi BPMN reali.
+Al termine cancella esclusivamente le proprie istanze ancora attive; quelle gia'
+completate non vengono cancellate. La traccia storica resta visibile in Camunda.
 
 Il completamento accesso gestisce il ritardo dell'indice Camunda: se un comando
 di assegnazione o completamento restituisce `404` per un task ancora indicizzato

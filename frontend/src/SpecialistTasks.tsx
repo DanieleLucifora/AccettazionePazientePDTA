@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { findTasks, type SpecialistRole } from './api';
+import { SpecialistTaskDetail } from './SpecialistTaskDetail';
 
 export function SpecialistTasks({ role }: { role: SpecialistRole }) {
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const query = useQuery({
     queryKey: ['tasks', role],
     queryFn: ({ signal }) => findTasks(role, signal),
@@ -10,11 +13,18 @@ export function SpecialistTasks({ role }: { role: SpecialistRole }) {
     gcTime: 0,
   });
 
+  if (selectedTask) {
+    return <SpecialistTaskDetail taskKey={selectedTask} role={role} onBack={() => {
+      setSelectedTask(null);
+      void query.refetch();
+    }} />;
+  }
+
   return (
     <section className="card" aria-labelledby="tasks-title">
       <div className="section-heading split">
         <div><h2 id="tasks-title">Attivita' di valutazione</h2>
-          <p>Aggiornamento automatico ogni 5 secondi. In questo incremento la vista e' di sola consultazione.</p></div>
+          <p>Aggiornamento automatico ogni 5 secondi. Apri un dettaglio per prendere in carico e valutare il paziente.</p></div>
         <button className="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}>
           {query.isFetching ? 'Aggiornamento...' : 'Aggiorna'}
         </button>
@@ -31,13 +41,15 @@ export function SpecialistTasks({ role }: { role: SpecialistRole }) {
       {query.data && query.data.length > 0 && <div className="table-scroll">
         <table>
           <caption className="sr-only">Task del gruppo {role}</caption>
-          <thead><tr><th>Paziente</th><th>Diagnosi</th><th>Attivita'</th><th>Assegnazione</th><th>Percorso</th></tr></thead>
+          <thead><tr><th>Paziente</th><th>Diagnosi</th><th>Attivita'</th><th>Assegnazione</th><th>Percorso</th><th>Dettaglio</th></tr></thead>
           <tbody>{query.data.map(task => <tr key={task.taskKey}>
             <td><strong>{task.patientID || 'ID non disponibile'}</strong><span className="cell-detail">{task.patientData || 'Dati non disponibili'}</span></td>
             <td>{task.diagnosiCode || 'Non disponibile'}</td>
             <td><span className="badge">{task.name}</span></td>
             <td>{task.assignee || 'Da assegnare'}</td>
             <td className="mono">{task.processInstanceKey}</td>
+            <td><button className="secondary" aria-label={`Apri dettaglio ${task.name} per paziente ${task.patientID || task.taskKey}`}
+              onClick={() => setSelectedTask(task.taskKey)}>Apri dettaglio</button></td>
           </tr>)}</tbody>
         </table>
       </div>}

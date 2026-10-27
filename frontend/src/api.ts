@@ -23,6 +23,42 @@ export interface TaskSummary {
   diagnosiCode: string;
 }
 
+export interface TaskDetail extends TaskSummary {
+  state: string;
+  role: SpecialistRole;
+  clinicalFileUrl: string | null;
+  examResult: string;
+  note: string;
+  currentOperatorId: string;
+}
+
+export interface SpecialistDecision {
+  outcome: 'APPROVE' | 'REJECT';
+  note: string;
+}
+
+export interface TaskActionResult {
+  taskKey: string;
+  status: 'CLAIMED' | 'COMPLETED';
+  assignee: string;
+}
+
+export function claimTask(taskKey: string, role: SpecialistRole): Promise<TaskActionResult> {
+  return request(`/tasks/${encodeURIComponent(taskKey)}/claim?role=${role}`, { method: 'POST' });
+}
+
+export function decideTask(taskKey: string, role: SpecialistRole, decision: SpecialistDecision): Promise<TaskActionResult> {
+  return request(`/tasks/${encodeURIComponent(taskKey)}/decision?role=${role}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(decision),
+  });
+}
+
+export function getTask(taskKey: string, role: SpecialistRole, signal: AbortSignal): Promise<TaskDetail> {
+  return request(`/tasks/${encodeURIComponent(taskKey)}?role=${role}`, { signal });
+}
+
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number) {
     super(message);

@@ -28,6 +28,32 @@ class PortalControllerTests {
     @MockitoBean SpecialistTaskService tasks;
 
     @Test
+    void claimsAndDecisionsUseServerSelectedOperatorAndValidateRejection() throws Exception {
+        var role = SpecialistTaskService.SpecialistRole.CHIRURGHI;
+        when(tasks.claim("42", role, "CH001"))
+                .thenReturn(new SpecialistTaskService.TaskActionResult("42", "CLAIMED", "CH001"));
+        mvc.perform(post("/api/tasks/42/claim").param("role", "CHIRURGHI"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.assignee").value("CH001"));
+        when(tasks.decide(eq("42"), eq(role), eq("CH001"), eq("Chirurgo Toracica"), any()))
+                .thenReturn(new SpecialistTaskService.TaskActionResult("42", "COMPLETED", "CH001"));
+        mvc.perform(post("/api/tasks/42/decision").param("role", "CHIRURGHI")
+                .contentType("application/json").content("""
+                {"outcome":"APPROVE","note":"Valutato","operatorId":"OTHER"}
+                """))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"));
+        for (String invalid : List.of(
+                "{\"outcome\":\"REJECT\",\"note\":\"   \"}",
+                "{\"outcome\":\"OTHER\"}", "{}",
+                "{\"outcome\":\"APPROVE\",\"note\":\"" + "x".repeat(2001) + "\"}")) {
+            mvc.perform(post("/api/tasks/42/decision").param("role", "CHIRURGHI")
+                    .contentType("application/json").content(invalid)).andExpect(status().isBadRequest());
+        }
+        verify(tasks, times(1)).decide(eq("42"), eq(role), eq("CH001"), eq("Chirurgo Toracica"), any());
+        mvc.perform(post("/api/tasks/abc/claim").param("role", "CHIRURGHI")).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/tasks/42/claim").param("role", "OTHER")).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void registrationReturnsCreatedAndResumableKey() throws Exception {
         when(registration.start(any(), eq("CM001"))).thenReturn(new RegistrationProgress("42", AccessStatus.WAITING));
         mvc.perform(post("/api/registrations").contentType("application/json")
@@ -84,5 +110,29 @@ class PortalControllerTests {
         mvc.perform(get("/api/tasks").param("role", "ONCOLOGI")).andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("private upstream detail"))));
+    }
+
+    @Test
+    void taskDetailValidatesKeyAndRoleAndUsesProblemDetails() throws Exception {
+        var role = SpecialistTaskService.SpecialistRole.CHIRURGHI;
+        when(tasks.getTask("42", role)).thenReturn(new SpecialistTaskService.TaskDetail(
+                "42", "100", "Valutazione Chirurgo", "CREATED", null, role,
+                "001", "Paziente fittizio", "6401", null, "Referto", "", "CH001"));
+        mvc.perform(get("/api/tasks/42").param("role", "CHIRURGHI"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.examResult").value("Referto"));
+        mvc.perform(get("/api/tasks/not-a-key").param("role", "CHIRURGHI")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/tasks/42").param("role", "ADMIN")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/tasks/42")).andExpect(status().isBadRequest());
+        when(tasks.getTask("42", role)).thenThrow(new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.CONFLICT, "Attivita' chiusa"));
+        mvc.perform(get("/api/tasks/42").param("role", "CHIRURGHI"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value("Attivita' chiusa"));
+        doThrow(new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Attivita' non trovata")).when(tasks).getTask("42", role);
+        mvc.perform(get("/api/tasks/42").param("role", "CHIRURGHI"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.detail").value("Attivita' non trovata"));
+        doThrow(new IllegalStateException("upstream private")).when(tasks).getTask("42", role);
+        mvc.perform(get("/api/tasks/42").param("role", "CHIRURGHI"))
+                .andExpect(status().isBadGateway());
     }
 }

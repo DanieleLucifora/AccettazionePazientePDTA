@@ -49,7 +49,7 @@ export default function App() {
               : 'Consulta i pazienti in attesa della valutazione specialistica.'}</p></div>
           {role === 'CASE_MANAGER' ? <RegistrationForm /> : <SpecialistTasks key={role} role={role} />}
           <footer className="page-footer">PDTA · Workflow di accettazione paziente
-            <span>Diagnostica, agenda e azioni di valutazione: prossimi incrementi.</span></footer>
+            <span>Richiesta esami, diagnostica e agenda: prossimi incrementi.</span></footer>
         </main>
       </div>
     </div>

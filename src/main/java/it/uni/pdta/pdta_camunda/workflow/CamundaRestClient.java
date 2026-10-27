@@ -151,6 +151,12 @@ public class CamundaRestClient {
         LOG.info("Task {} assigned to {}", userTaskKey, assignee);
     }
 
+    public void claimTask(String userTaskKey, String assignee) {
+        restTemplate.postForEntity(baseUrl + "/user-tasks/" + userTaskKey + "/assignment",
+                Map.of("assignee", assignee, "allowOverride", false), String.class);
+        LOG.info("Task {} claimed by {} without assignment override", userTaskKey, assignee);
+    }
+
     // Completa un task con variabili
     public void completeTask(String userTaskKey, Map<String, Object> variables) throws Exception {
         String url = baseUrl + "/user-tasks/" + userTaskKey + "/completion";

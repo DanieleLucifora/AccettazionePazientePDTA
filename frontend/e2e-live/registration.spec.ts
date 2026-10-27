@@ -63,6 +63,11 @@ test('real Camunda: registration, access retries and both specialist views', asy
       await expect(row).toContainText(patientData);
       await expect(row).toContainText(taskName);
       await expect(row).toContainText(processKey!);
+      await row.getByRole('button', { name: /Apri dettaglio/ }).click();
+      await expect(page.getByRole('heading', { name: "Dettaglio attivita'" })).toBeVisible();
+      await expect(page.getByText(patientData, { exact: true })).toBeVisible();
+      await expect(page.getByText('Nessun referto disponibile.')).toBeVisible();
+      await page.getByRole('button', { name: "Torna alle attivita'" }).click();
       await page.reload();
       await page.getByLabel('Vista operatore').selectOption(role);
       await expect(page.getByRole('row').filter({ hasText: patientID })).toHaveCount(1);

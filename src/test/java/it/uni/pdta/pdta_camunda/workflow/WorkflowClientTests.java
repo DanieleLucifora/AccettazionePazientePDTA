@@ -17,6 +17,19 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 class WorkflowClientTests {
     @Test
+    void claimExplicitlyDisallowsOverwritingAnotherAssignee() {
+        var template = new RestTemplate();
+        var server = MockRestServiceServer.bindTo(template).build();
+        server.expect(requestTo("http://camunda/v2/user-tasks/42/assignment"))
+                .andExpect(content().json("""
+                        {"assignee":"CH001","allowOverride":false}
+                        """))
+                .andRespond(withNoContent());
+        new CamundaRestClient("http://camunda/v2", template).claimTask("42", "CH001");
+        server.verify();
+    }
+
+    @Test
     void variableValuesPreserveTypesAndEmbeddedQuotes() throws Exception {
         var template = new RestTemplate();
         var server = MockRestServiceServer.bindTo(template).build();

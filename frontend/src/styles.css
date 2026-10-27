@@ -54,6 +54,15 @@ input::placeholder, textarea::placeholder { color: #7c8e95; }
 .review { display: grid; grid-template-columns: minmax(100px, 150px) minmax(0, 1fr); gap: 14px; font-size: 13px; }
 .review dt { color: #63777e; }
 .review dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-detail-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.task-detail-header h3 { margin-top: 0; }
+.detail-section { border-top: 1px solid #edf1f2; margin-top: 24px; padding-top: 16px; font-size: 13px; }
+.detail-section h3 { font-size: 15px; }
+.preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
+.detail-footnote { margin: 24px 0 0; color: #63777e; font-size: 12px; }
+.decision-label { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; font-weight: 600; }
+.decision-label select { padding: 10px; border: 1px solid #c9d7db; border-radius: 7px; background: white; color: #203b43; }
+button.danger { background: #963c31; border-color: #963c31; }
 .notice { border: 1px solid #c9dce6; background: #f2f8fc; border-radius: 8px; padding: 18px; margin-bottom: 20px; font-size: 13px; overflow-wrap: anywhere; }
 .notice h3 { font-size: 16px; margin: 0 0 8px; }
 .notice p:last-child { margin-bottom: 0; }
