@@ -100,7 +100,7 @@ class PortalControllerTests {
         when(registration.start(any(), eq("CM001"))).thenReturn(new RegistrationProgress("42", AccessStatus.WAITING));
         mvc.perform(post("/api/registrations").contentType("application/json")
                 .content("""
-                        {"patientID":"001","firstName":"Mario","lastName":"Rossi","birthDate":"1980-01-02","diagnosiCode":"6401"}
+                        {"patientID":"RSSMRA80A01H501U","firstName":"Mario","lastName":"Rossi","birthDate":"1980-01-02","diagnosiCode":"6401"}
                         """))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.processInstanceKey").value("42"))
                 .andExpect(jsonPath("$.status").value("WAITING"));
@@ -113,7 +113,7 @@ class PortalControllerTests {
                 {"patientID":" ","patientData":"Mario","diagnosiCode":"6401"}
                 """,
                 """
-                {"patientID":"001","patientData":"Mario","diagnosiCode":"6401","clinicalFileUrl":"javascript:alert(1)"}
+                {"patientID":"RSSMRA80A01H501U","patientData":"Mario","diagnosiCode":"6401","clinicalFileUrl":"javascript:alert(1)"}
                 """)) {
             mvc.perform(post("/api/registrations").contentType("application/json").content(body))
                     .andExpect(status().isBadRequest());

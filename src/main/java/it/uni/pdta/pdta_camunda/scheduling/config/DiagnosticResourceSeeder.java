@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Set;
 
 /**
- * Seed minimale delle risorse diagnostiche, utile per test locali CLI.
+ * Seed minimale delle risorse diagnostiche per il prototipo locale.
  */
 @Component
 @RequiredArgsConstructor

@@ -20,7 +20,7 @@ class PatientRegistrationServiceTests {
 
     @Test
     void startsWithExistingBpmnVariablesAndStringKey() {
-        var request = new RegistrationRequest(" 001 ", " Mario ", " \"Rossi\" ", java.time.LocalDate.of(1980, 1, 2), "6401", null);
+        var request = new RegistrationRequest(" rssmra80a01h501u ", " Mario ", " \"Rossi\" ", java.time.LocalDate.of(1980, 1, 2), "6401", null);
         var event = mock(ProcessInstanceEvent.class);
         when(event.getProcessInstanceKey()).thenReturn(2251799813685249L);
         when(camunda.newCreateInstanceCommand().bpmnProcessId("presa_in_carico_pdta").latestVersion()
@@ -30,7 +30,7 @@ class PatientRegistrationServiceTests {
 
         assertThat(result.processInstanceKey()).isEqualTo("2251799813685249");
         assertThat(result.status()).isEqualTo(PatientRegistrationService.AccessStatus.WAITING);
-        assertThat(request.variables("CM001")).containsEntry("patientID", "001")
+        assertThat(request.variables("CM001")).containsEntry("patientID", "RSSMRA80A01H501U")
                 .containsEntry("patientData", "Mario \"Rossi\"").doesNotContainKey("clinicalFileUrl");
     }
 

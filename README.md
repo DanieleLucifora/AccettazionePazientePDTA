@@ -25,13 +25,13 @@ Il flusso operativo prevede:
 Il sistema è composto da:
 *   **PdtaCamundaApplication** (Spring Boot): Applicazione principale che esegue i worker Camunda in background per processare automaticamente i job (firma documenti, generazione PDTA). Integra servizi di schedulazione (BookingService, ResourceEventService) e KPI (KpiSnapshotService).
 *   **Servizi di Scheduling:** Gestione slot prenotabili, conflitti di prenotazione, audit eventi dettagliato e persistenza su H2.
-*   **CLI Standalone**: Tre applicazioni per l'interazione utente. Specialista e diagnostica avviano un contesto Spring non web per accedere ai servizi di scheduling:
-    *   `CaseManagerCli`: Interfaccia per inserimento pazienti e avvio processo
-    *   `SpecialistCli`: Interfaccia unificata per Chirurghi e Oncologi (approva / rifiuta / richiedi esami con selezione slot)
-    *   `DiagnosticCli`: Interfaccia laboratorio per gestione richieste esami, schedulazione (conferma/modifica/rifiuto slot) e invio referti
-*   **Camunda REST Client**: Utilizzato dalle CLI per interagire con i processi e i task tramite API REST v2
-*   **Registrazione condivisa**: `registration/PatientRegistrationService` e' usato dalla CLI Case Manager e dalle API web. Il client REST condiviso si trova in `workflow/`.
+*   **Servizi applicativi**: Registrazione, valutazioni, richieste esami, prenotazioni e refertazione sono esposti dalle API del portale, mantenendo logica e persistenza nel backend.
+*   **Camunda REST Client**: Il client in `workflow/` integra le API REST v2 di Camunda per processi, task e variabili.
 *   **Portale web locale**: API abilitate solo con profilo Spring `web-ui`, con frontend in `frontend/`. Camunda rimane responsabile del processo; il browser non lo chiama direttamente.
+
+Il portale e' l'interfaccia operativa applicativa per Case Manager, Chirurgo,
+Oncologo e Diagnostica. 
+Per avvio e uso attuali fare riferimento a questo README.
 
 ## Portale web locale
 
@@ -52,19 +52,19 @@ Disponibili:
 * richieste diagnostiche con dettaglio del richiedente, presa in carico,
   conferma della proposta, modifica motivata della fascia oppure rifiuto motivato;
 * decisioni diagnostiche persistenti, con protezione dalle doppie prenotazioni
-  dello stesso task anche fra CLI e GUI;
+  dello stesso task;
 * referto diagnostico obbligatorio con riepilogo, conferma, salvataggio persistente
   e ritorno al solo specialista richiedente, dopo la fine della fascia prenotata;
 * errori espliciti e recupero della chiave di una registrazione pendente nella stessa sessione del browser.
 
 **Non e' un login reale**: il selettore non implementa autorizzazioni. Il profilo web
-ascolta solo su `127.0.0.1`; non esporlo in rete e usa esclusivamente dati fittizi.
+ascolta solo su `127.0.0.1`; non esposto in rete e usa esclusivamente dati fittizi.
 Le API di registrazione usano l'identita' dimostrativa `CM001`, anche per l'assegnazione
-del task iniziale (prima la CLI lo assegnava a `demo`).
+del task iniziale.
 Gli specialisti simulati sono `CH001` (chirurgo) e `ON001` (oncologo), scelti dal
 backend per il ruolo selezionato, non dal corpo della richiesta.
 L'operatore Diagnostica simulato e' `LAB001` (Mario Neri).
-Prenotazione definitiva e refertazione sono disponibili nella GUI e nella CLI.
+Prenotazione definitiva e refertazione sono disponibili nella GUI.
 I dati paziente restano variabili Camunda: la lista dei percorsi interroga gli indici
 del motore, senza introdurre una seconda anagrafica nel database applicativo.
 
@@ -92,8 +92,7 @@ npm ci
 npm run dev
 ```
 
-Apri `http://127.0.0.1:5173`. Il proxy Vite inoltra `/api` a Spring Boot sulla porta
-8081; non occorre abilitare CORS. Non avviare una seconda applicazione worker sulla stessa porta.
+Apri `http://127.0.0.1:5173`. Il proxy Vite inoltra `/api` a Spring Boot sulla porta 8081.
 
 Dopo l'avvio di un percorso la UI prova a completare il task iniziale. Se Camunda
 non lo ha ancora indicizzato, usa **Verifica e completa accesso**. La chiave pendente
@@ -123,7 +122,7 @@ eseguito prima del packaging. Senza il profilo Spring le API del portale non son
 |---|---|---|
 | POST | `/api/registrations` | `201`, chiave del processo come stringa e stato `WAITING` |
 | GET | `/api/registrations/options` | Codici diagnosi letti dalla DMN e data corrente del server |
-| GET | `/api/pathways?patientId=0001&state=ACTIVE&offset=0` | Fino a 20 percorsi, totale e `hasNext`; filtri opzionali, stato `ACTIVE` / `COMPLETED` / `TERMINATED` |
+| GET | `/api/pathways?patientId=RSSMRA80A01H501U&state=ACTIVE&offset=0` | Fino a 20 percorsi, totale e `hasNext`; filtri opzionali, stato `ACTIVE` / `COMPLETED` / `TERMINATED` |
 | GET | `/api/pathways/{key}` | Anagrafica disponibile, stato motore, eventi, attivita', decisioni diagnostiche, prenotazioni storiche e referti |
 | POST | `/api/registrations/{key}/complete-access` | `200`, `WAITING` oppure `COMPLETED` per la sola raccolta dati iniziale |
 | GET | `/api/tasks?role=CHIRURGHI` | Task aperti del gruppo con dati paziente |
@@ -143,11 +142,13 @@ eseguito prima del packaging. Senza il profilo Spring le API del portale non son
 
 ### Qualita' dei dati di accesso
 
-GUI e CLI richiedono ID paziente, nome, cognome, data di nascita e codice diagnosi.
-L'ID e' un identificativo interno, **non un codice fiscale**: massimo 64 caratteri,
-iniziale alfanumerica, poi lettere ASCII, numeri, punto, underscore o trattino.
-Resta una stringa, conservando gli zeri iniziali. Non e' un vincolo di unicita':
-un paziente puo' avere piu' percorsi; verificare quelli esistenti prima dell'inserimento.
+La GUI richiede codice fiscale, nome, cognome, data di nascita e codice diagnosi.
+L'identificativo del paziente e' il suo **codice fiscale** (16 caratteri, maiuscolo
+normalizzato): il server verifica formato, omocodia e carattere di controllo. La variabile
+Camunda resta `patientID`, per compatibilita' con BPMN e worker. Non e' un vincolo di
+unicita': un paziente puo' avere piu' percorsi; verificare quelli esistenti prima
+dell'inserimento. La ricerca percorsi e' esatta e trova anche i percorsi precedenti con ID
+non fiscale. Il codice fiscale e' un dato personale: nelle demo usare solo codici fittizi.
 Nome e cognome sono obbligatori (massimo 100 caratteri ciascuno), devono contenere
 lettere e supportano accenti, apostrofi, trattini e nomi composti. Gli spazi vengono
 normalizzati; la data deve essere valida, con anno positivo e non futura rispetto al server.
@@ -157,13 +158,13 @@ Il selettore diagnosi usa le sei regole della DMN nel pacchetto (`1001`, `2609`,
 i criteri di inclusione. La DMN distribuita in Camunda deve coincidere con quella
 nel pacchetto applicativo. Un errore di caricamento del catalogo blocca l'inserimento.
 L'URL della cartella resta facoltativo: solo URL assoluti HTTP/HTTPS con host e senza
-credenziali incorporate. Non si aggiungono motivo di accesso, note o codice fiscale.
+credenziali incorporate. Non si aggiungono motivo di accesso o note.
 
 Il nuovo corpo di `POST /api/registrations` e':
 
 ```json
 {
-  "patientID": "DEMO-0001",
+  "patientID": "RSSMRA80A01H501U",
   "firstName": "Paziente",
   "lastName": "Fittizio",
   "birthDate": "1980-01-02",
@@ -172,14 +173,14 @@ Il nuovo corpo di `POST /api/registrations` e':
 }
 ```
 
-Il backend ripete le validazioni anche per la CLI. Il vecchio corpo con solo
+Il backend ripete le validazioni sulle richieste API. Il vecchio corpo con solo
 `patientData` non e' piu' valido per **nuovi inserimenti**. Per compatibilita' con
 specialisti e worker vengono ancora scritti `patientID`, `patientData` (nome e
 cognome), `diagnosiCode` e `caseManagerId`; si aggiungono `patientFirstName`,
 `patientLastName`, `patientBirthDate` e `registrationSchemaVersion: 2`.
 Non occorrono migrazioni dei dati o una nuova distribuzione BPMN/DMN.
 Il modulo nativo Tasklist rimane quello legacy: i controlli descritti si applicano
-agli ingressi GUI/CLI/API, non a modifiche dirette delle variabili da altri client.
+agli ingressi GUI/API, non a modifiche dirette delle variabili da altri client.
 
 ### Percorsi paziente
 
@@ -226,10 +227,9 @@ Solo dopo la conferma dell'assegnazione puoi rivedere e confermare la decisione:
   restituendo una notifica di rifiuto allo specialista, non un referto clinico.
 
 Conferma e modifica occupano realmente la risorsa. Il task Camunda resta aperto per
-la refertazione dalla GUI o dalla CLI, riutilizzando la prenotazione senza crearne un'altra.
-Anche le nuove decisioni prese dalla CLI vengono salvate nello stesso archivio.
-La CLI Diagnostica richiede quindi il database di scheduling disponibile e condiviso
-con il portale; non prosegue con una refertazione senza archivio se il bootstrap fallisce.
+la refertazione dalla GUI, riutilizzando la prenotazione senza crearne un'altra.
+Il database di scheduling conserva decisioni, prenotazioni e referti anche dopo
+la rimozione delle CLI.
 La GUI non riprenota una decisione gia' salvata, nemmeno se lo slot viene successivamente
 annullato: verifica lo stato mostrato e risolvi il caso prima di refertare.
 
@@ -257,13 +257,12 @@ abilita **solo dopo la fine della fascia prenotata**, secondo l'orologio locale 
 server. Non basta cambiare l'orologio del browser: il backend ripete il controllo.
 La prenotazione deve essere attiva (`BOOKED` / `IN_PROGRESS`), il task aperto e
 assegnato a `LAB001`, con contesto esame e richiedente coerenti.
-La stessa regola temporale si applica ora alla CLI.
 
 Inserisci un testo non vuoto di massimo 10000 caratteri, usa **Rivedi referto** e
 poi **Conferma e invia referto**. La bozza resta solo in memoria nel componente:
 uscire dal dettaglio o ricaricare la pagina prima della conferma puo' perderla.
 Il riepilogo non invia comandi. Non viene piu' generato un esito clinico automatico
-se il testo e' vuoto, neppure dalla CLI.
+se il testo e' vuoto.
 
 Alla conferma, il testo diventa definitivo. Il salvataggio del referto, il passaggio
 dello slot a `COMPLETED` e l'unico evento `EXAM_COMPLETED` avvengono nella stessa
@@ -279,8 +278,8 @@ non arriva, **non riscrivere il referto**: usa **Verifica stato referto**.
 Un referto `PENDING` e' salvato, ma l'invio non e' ancora confermato; se il task
 e' ancora aperto puoi usare **Riprendi invio referto salvato**. Viene inviato
 esattamente lo stesso testo, senza un nuovo evento di completamento.
-Il recupero e' disponibile anche dopo refresh; GUI e CLI condividono archivio,
-controlli e servizio di invio. Non e' prevista la rettifica di referti gia' confermati.
+Il recupero e' disponibile anche dopo refresh, tramite lo stesso archivio
+persistente e servizio di invio. Non e' prevista la rettifica di referti gia' confermati.
 
 Se il dettaglio del task e' ormai chiuso, il pulsante di verifica del referto resta
 disponibile nel messaggio di errore. La verifica puo' riconciliare la conferma persa
@@ -317,7 +316,7 @@ Il corpo della decisione e' `{"outcome":"APPROVE","note":"..."}` oppure
 `{"outcome":"REJECT","note":"Motivazione obbligatoria"}`. Le note hanno limite
 di 2000 caratteri; spazi iniziali/finali vengono rimossi. **Rivedi esito** non invia
 comandi: il task viene completato solo con **Conferma e invia esito**.
-CLI e web condividono il servizio di valutazione e il payload BPMN
+Il servizio di valutazione costruisce il payload BPMN
 (`isApproved`, `requiresExam: false`, `note`, `validatorId`, `validatorRole`).
 
 I comandi verificano anche l'elemento BPMN previsto per il ruolo. Task chiusi,
@@ -369,7 +368,7 @@ Esempio manuale (ID e data devono provenire dalle disponibilita' effettive):
 {"examType":"TAC","bodyPart":"TORACE","schedulingPreference":"MANUAL_CALENDAR","resourceId":1,"startTime":"2026-10-28T09:00:00","note":"Approfondimento"}
 ```
 
-CLI e web condividono la costruzione del payload, compresi identita' richiedente,
+Il backend costruisce il payload, compresi identita' richiedente,
 coda senza duplicati e variabili specifiche `chirurgo*` / `oncologo*`.
 Una nuova richiesta automatica azzera i precedenti campi di scelta manuale,
 evitando di riusare una vecchia fascia nei cicli successivi.
@@ -381,12 +380,12 @@ Il BPMN include i mapping `requesterId` verso `chirurgoRequesterId` /
 Camunda scartava ID e coda al completamento dello specialista. Dopo l'aggiornamento
 va distribuita la nuova versione del processo: le istanze gia' avviate restano
 sulla loro versione e non acquisiscono automaticamente i nuovi mapping.
-La coda conserva la logica CLI esistente; lettura e completamento di specialisti
+La coda conserva la logica esistente; lettura e completamento di specialisti
 concorrenti non costituiscono un aggiornamento atomico della coda condivisa.
 
 **La selezione non prenota uno slot** e non scrive una prenotazione nel database.
-La Diagnostica puo' confermare, modificare o rifiutare la proposta dalla GUI
-oppure dalla CLI, con gli stessi controlli di conflitto della prenotazione.
+La Diagnostica puo' confermare, modificare o rifiutare la proposta dalla GUI,
+con i controlli di conflitto della prenotazione.
 La disponibilita' puo' cambiare anche dopo l'invio della richiesta.
 I due percorsi diagnostici hanno ora ritorni separati al rispettivo specialista;
 anche l'inserimento del referto e' disponibile nel portale.
@@ -394,7 +393,7 @@ anche l'inserimento del referto e' disponibile nel portale.
 ### Verifiche del portale
 
 ```bash
-./mvnw -Dtest=PatientRegistrationServiceTests,WorkflowClientTests,SpecialistTaskServiceTests,SpecialistDecisionTests,DiagnosticExamServiceTests,DiagnosticRequestContextTests,BpmnExamMappingsTests,PortalControllerTests,PortalHttpTests,DiagnosticHttpTests,DiagnosticReportHttpTests test
+./mvnw test
 cd frontend
 npm test
 npm run build
@@ -489,43 +488,27 @@ Compilare il progetto ed eseguire i test unitari:
 ```
 
 ### 3. Esecuzione dei Componenti
-Il sistema è composto da diverse applicazioni che devono essere avviate in finestre di terminale separate, nel seguente ordine:
+Avvia una sola applicazione Spring Boot con il profilo `web-ui`:
 
-**Terminale 1: Applicazione Principale (Worker Camunda)**
 ```bash
-./start-app.sh
+SPRING_PROFILES_ACTIVE=web-ui ./start-app.sh
 ```
-Avvia l'applicazione Spring Boot con i worker Camunda che processano automaticamente i job in background.
 
-**Terminale 2: Interfaccia Case Manager (Avvio Processi)**
-```bash
-./start-casemanager.sh
-```
-CLI Java standalone per l'inserimento di nuovi pazienti nel sistema PDTA.
+Il backend espone le API e gestisce i worker automatici. Per lo sviluppo avvia
+il frontend in un secondo terminale con `cd frontend && npm run dev`, poi apri
+`http://127.0.0.1:5173`. Per servire anche il frontend dallo stesso JAR,
+segui la sezione **Pacchetto unico** e apri `http://127.0.0.1:8081`.
 
-**Terminale 3: Interfaccia Specialista (Chirurgo)**
-```bash
-./start-specialist.sh
-```
-Selezionare opzione 1 per simulare un Chirurgo.
-
-**Terminale 4: Interfaccia Specialista (Oncologo)**
-```bash
-./start-specialist.sh
-```
-Selezionare opzione 2 per simulare un Oncologo.
-
-**Terminale 5: Interfaccia Diagnostica (Laboratorio)**
-```bash
-./start-diagnostic.sh
-```
-Avvia la CLI di laboratorio che monitora e completa i task "Esami Diagnostici".
+Nel portale seleziona la vista Case Manager, Chirurgo, Oncologo o Diagnostica:
+non servono terminali separati per gli operatori. Il selettore rimane dimostrativo,
+senza autenticazione reale. L'avvio senza profilo `web-ui` mantiene disponibili
+i worker, ma non le API operative del portale.
 
 ## Note Funzionali
-*   La CLI specialista invia variabili di processo per la gestione degli esami: `requiresExam`, `examType`, `requesterRole`, `requesterName`. Può selezionare manualmente slot prenotabili dall'interfaccia.
-*   La CLI diagnostica può: (1) confermare lo slot proposto, (2) modificare data/ora con giustificazione, (3) rifiutare con motivazione. Ogni azione è tracciata negli audit eventi.
+*   Il portale specialista invia variabili di processo per la gestione degli esami: `requiresExam`, `examType`, `requesterRole`, `requesterName`. Consente la selezione manuale delle fasce disponibili.
+*   Il portale diagnostica consente conferma della proposta, modifica motivata della fascia o rifiuto motivato. Le decisioni vengono salvate e gli eventi di prenotazione tracciati.
 *   I referti sono gestiti per ruolo (`chirurgoExamResult`, `oncologoExamResult`) così ogni specialista visualizza il referto corretto.
-*   La CLI diagnostica usa il servizio condiviso per salvare e inviare i referti; un errore di completamento richiede verifica, non equivale a successo.
-*   **Configurazione dati:** Attualmente esami, risorse diagnostiche e slot temporali sono hardcoded nel seeder per velocità di prototipazione. In futuro saranno gestibili dinamicamente tramite CLI.
+*   Il backend salva e invia i referti; un errore di completamento richiede verifica, non equivale a successo.
+*   **Configurazione dati:** Protocolli e risorse diagnostiche iniziali vengono caricati dai seeder; le fasce disponibili sono calcolate dal servizio di scheduling. La gestione amministrativa tramite GUI non e' ancora disponibile.
 *   **KPI Giornalieri:** Sistema automatico di snapshot KPI schedulato giornalmente (configurabile via `application.yml`).
 *   **Tracciabilità completa:** Ogni evento di scheduling registra chi ha richiesto e chi ha eseguito/refertato, garantendo visibilità operativa totale.

@@ -36,7 +36,7 @@ class PortalHttpTests {
 
     @Test
     void realHttpServerWiresRegistrationCompletionAndSpecialistQueries() throws Exception {
-        var input = new RegistrationRequest("DEMO-HTTP", "Paziente", "dimostrativo", java.time.LocalDate.of(1980, 1, 2), "6401", "");
+        var input = new RegistrationRequest("VRDLGU85C15F205Q", "Paziente", "dimostrativo", java.time.LocalDate.of(1980, 1, 2), "6401", "");
         var instance = mock(ProcessInstanceEvent.class);
         when(instance.getProcessInstanceKey()).thenReturn(42L);
         when(camunda.newCreateInstanceCommand().bpmnProcessId("presa_in_carico_pdta").latestVersion()
@@ -72,10 +72,10 @@ class PortalHttpTests {
                 .thenReturn(List.of(specialist));
         var tasks = http.getForEntity("/api/tasks?role=CHIRURGHI", String.class);
         assertThat(tasks.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(tasks.getBody()).contains("DEMO-HTTP", "Valutazione Chirurgo", "Paziente dimostrativo");
+        assertThat(tasks.getBody()).contains("VRDLGU85C15F205Q", "Valutazione Chirurgo", "Paziente dimostrativo");
         var detail = http.getForEntity("/api/tasks/43?role=CHIRURGHI", String.class);
         assertThat(detail.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(detail.getBody()).contains("\"state\":\"CREATED\"", "DEMO-HTTP", "\"role\":\"CHIRURGHI\"");
+        assertThat(detail.getBody()).contains("\"state\":\"CREATED\"", "VRDLGU85C15F205Q", "\"role\":\"CHIRURGHI\"");
         assertThat(http.getForEntity("/api/tasks/43?role=ONCOLOGI", String.class).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(http.getForEntity("/api/tasks?role=ADMIN", String.class).getStatusCode())

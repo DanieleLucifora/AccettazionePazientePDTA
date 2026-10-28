@@ -11,7 +11,7 @@ test('registration survives reload and does not start a second process', async (
   let completions = 0;
   await page.route('**/api/registrations', async route => {
     creations++;
-    expect(route.request().postDataJSON()).toMatchObject({ patientID: '001', diagnosiCode: '6401',
+    expect(route.request().postDataJSON()).toMatchObject({ patientID: 'RSSMRA80A01H501U', diagnosiCode: '6401',
       firstName: 'Paziente', lastName: 'dimostrativo', birthDate: '1980-01-02' });
     await route.fulfill({ status: 201, json: { processInstanceKey: '42', status: 'WAITING' } });
   });
@@ -20,7 +20,7 @@ test('registration survives reload and does not start a second process', async (
     await route.fulfill({ json: { processInstanceKey: '42', status: completions > 1 ? 'COMPLETED' : 'WAITING' } });
   });
   await page.goto('/');
-  await page.getByLabel('ID paziente').fill('001');
+  await page.getByLabel('Codice fiscale').fill('RSSMRA80A01H501U');
   await page.getByLabel('Codice diagnosi').selectOption('6401');
   await page.getByLabel(/^Nome/).fill('Paziente');
   await page.getByLabel(/^Cognome/).fill('dimostrativo');
@@ -35,7 +35,7 @@ test('registration survives reload and does not start a second process', async (
   await expect(page.getByText('Raccolta dati completata')).toBeVisible();
   expect(creations).toBe(1);
   await page.getByRole('button', { name: 'Registra un altro paziente' }).click();
-  await expect(page.getByLabel('ID paziente')).toHaveValue('');
+  await expect(page.getByLabel('Codice fiscale')).toHaveValue('');
 });
 
 test('specialist views remain distinct and failed retrieval is not shown as an empty list', async ({ page }) => {
@@ -60,6 +60,6 @@ test('mobile registration is accessible and has no page-level horizontal overflo
   await page.goto('/');
   await expect(page.getByText('DEMO LOCALE')).toBeVisible();
   await page.getByRole('button', { name: 'Avvia percorso PDTA' }).click();
-  await expect(page.getByLabel('ID paziente')).toBeFocused();
+  await expect(page.getByLabel('Codice fiscale')).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

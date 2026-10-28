@@ -1,4 +1,9 @@
 # Guida di Sviluppo — PDTA Camunda
+> **Documento storico:** questa roadmap descrive la fase precedente al portale.
+> Le CLI e i relativi script sono stati rimossi dopo il trasferimento delle
+> operazioni nella GUI. I riferimenti ai file CLI non sono piu' istruzioni
+> eseguibili; per lo stato attuale consultare il [README](../README.md).
+
 > Stato aggiornato al 25/04/2026  
 > Stack: Java 21 · Spring Boot 3.5.8 · Camunda 8 (Zeebe) · H2 file-based · Maven
 

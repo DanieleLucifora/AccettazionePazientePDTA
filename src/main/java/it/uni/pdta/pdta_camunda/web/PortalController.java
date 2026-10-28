@@ -154,7 +154,8 @@ public class PortalController {
             @RequestParam(defaultValue = "") @jakarta.validation.constraints.Size(max = 64) String patientId,
             @RequestParam(defaultValue = "") @Pattern(regexp = "^$|ACTIVE|COMPLETED|TERMINATED") String state,
             @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int offset) throws Exception {
-        return pathways.list(patientId.trim(), state, offset);
+        var search = it.uni.pdta.pdta_camunda.registration.TaxCode.normalize(patientId);
+        return pathways.list(it.uni.pdta.pdta_camunda.registration.TaxCode.isValid(search) ? search : patientId.trim(), state, offset);
     }
 
     @GetMapping("/pathways/{key}")

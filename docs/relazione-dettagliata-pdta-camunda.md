@@ -1,5 +1,10 @@
 # Relazione dettagliata del progetto PDTA Camunda
 
+> **Documento storico:** descrive anche l'architettura precedente con CLI.
+> Le interfacce a terminale sono state sostituite dal portale web e rimosse
+> dal codice corrente. Per avvio, funzionalita' e limiti attuali consultare
+> il [README](../README.md). I dati e i servizi di scheduling restano disponibili.
+
 ## 1) Obiettivo dell'applicazione spiegato in modo semplice
 
 L'applicazione serve ad aiutare un team clinico a gestire in modo ordinato e tracciabile la presa in carico di un paziente in un percorso PDTA.

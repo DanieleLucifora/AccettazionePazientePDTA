@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    # DB condiviso su file locale, visibile da app principale + CLI separate
+    # DB persistente su file locale per scheduling, referti e audit
     url: jdbc:h2:file:./data/pdta;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
     username: sa

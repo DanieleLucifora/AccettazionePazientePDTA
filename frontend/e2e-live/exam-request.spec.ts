@@ -1,3 +1,4 @@
+import { fakeTaxCode } from './fakeTaxCode';
 import { expect, test, type APIResponse } from '@playwright/test';
 import type { ExamSlot } from '../src/api';
 
@@ -9,11 +10,11 @@ for (const [mode, role, prefix] of [
   ['MANUAL_CALENDAR', 'ONCOLOGI', 'oncologo'],
 ] as const) {
   test(`real diagnostic request: ${mode} ${role}`, async ({ page, request }) => {
-    const patientID = `GUI-EXAM-${Date.now()}`;
+    const patientID = fakeTaxCode();
     let processKey: string | undefined;
     try {
       await page.goto('/');
-      await page.getByLabel('ID paziente').fill(patientID);
+      await page.getByLabel('Codice fiscale').fill(patientID);
       await page.getByLabel('Codice diagnosi').selectOption('6401');
       await page.getByLabel(/^Nome/).fill('Paziente');
       await page.getByLabel(/^Cognome/).fill('fittizio verifica richiesta esami');

@@ -1,7 +1,8 @@
+import { fakeTaxCode } from './fakeTaxCode';
 import { expect, test } from '@playwright/test';
 
 test('real Camunda: registration, access retries and both specialist views', async ({ page, request }) => {
-  const patientID = `GUI-TEST-${Date.now()}`;
+  const patientID = fakeTaxCode();
   const firstName = 'Paziente';
   const lastName = `fittizio verifica GUI "${patientID}"`;
   const patientData = `${firstName} ${lastName}`;
@@ -26,7 +27,7 @@ test('real Camunda: registration, access retries and both specialist views', asy
 
     await page.goto('/');
     await expect(page.getByText('DEMO LOCALE')).toBeVisible();
-    await page.getByLabel('ID paziente').fill(patientID);
+    await page.getByLabel('Codice fiscale').fill(patientID);
     await page.getByLabel('Codice diagnosi').selectOption('6401');
     await page.getByLabel(/^Nome/).fill(firstName);
     await page.getByLabel(/^Cognome/).fill(lastName);
@@ -82,7 +83,7 @@ test('real Camunda: registration, access retries and both specialist views', asy
     expect(creations).toBe(1);
     await page.getByLabel('Vista operatore').selectOption('CASE_MANAGER');
     await page.getByRole('button', { name: 'Percorsi paziente', exact: true }).click();
-    await page.getByLabel('Cerca ID paziente').fill(patientID);
+    await page.getByLabel('Cerca codice fiscale').fill(patientID);
     await page.getByRole('button', { name: 'Cerca percorsi' }).click();
     await page.getByRole('button', { name: /Apri percorso/ }).click();
     await expect(page.getByText('1980-01-02', { exact: true })).toBeVisible();

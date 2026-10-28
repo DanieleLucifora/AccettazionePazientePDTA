@@ -36,6 +36,18 @@ build/
 .DS_Store
 data/
 
+### LaTeX build artifacts ###
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.toc
+*.synctex.gz
+*.synctex(busy)
+/relazione-fine-tirocinio.log
+/docs/relazione/*.log
+/docs/relazione/build/
+
 ### Web UI ###
 frontend/node_modules/
 frontend/dist/

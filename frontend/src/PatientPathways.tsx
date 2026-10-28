@@ -21,16 +21,16 @@ export function PatientPathways() {
       <button className="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}>Aggiorna percorsi</button></div>
     <form onSubmit={event => { event.preventDefault(); setFilter({ patient: patient.trim(), state, offset: 0 }); }}>
       <div className="form-grid">
-        <label>Cerca ID paziente
+        <label>Cerca codice fiscale
           <input value={patient} onChange={event => setPatient(event.target.value)} maxLength={64} autoComplete="off"
-            placeholder="ID esatto, inclusi gli zeri iniziali" />
+            placeholder="Codice fiscale o ID dei percorsi precedenti" />
         </label>
         <label>Stato percorso<select value={state} onChange={event => setState(event.target.value)}>
           <option value="">Tutti gli stati</option><option value="ACTIVE">In corso</option>
           <option value="COMPLETED">Completati</option><option value="TERMINATED">Annullati</option>
         </select></label>
       </div>
-      <div className="form-footer"><span>Ricerca esatta per ID paziente; ordinamento per avvio piu' recente.</span>
+      <div className="form-footer"><span>Ricerca esatta per codice fiscale (o ID precedente); ordinamento per avvio piu' recente.</span>
         <button type="submit" disabled={query.isFetching}>Cerca percorsi</button></div>
     </form>
     {query.isPending && <p role="status">Caricamento percorsi...</p>}

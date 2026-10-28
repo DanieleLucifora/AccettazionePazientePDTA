@@ -18,7 +18,7 @@ it('registers once and retries only the access task when indexing is delayed', a
   vi.stubGlobal('fetch', fetchMock);
   const user = userEvent.setup();
   render(<RegistrationForm />);
-  await user.type(screen.getByLabelText(/ID paziente/), '001');
+  await user.type(screen.getByLabelText(/Codice fiscale/), 'RSSMRA80A01H501U');
   await user.selectOptions(screen.getByLabelText(/Codice diagnosi/), '6401');
   await user.type(screen.getByLabelText(/^Nome/), 'Mario');
   await user.type(screen.getByLabelText(/^Cognome/), 'Rossi');
@@ -50,7 +50,7 @@ it('shows upstream failures and blocks automatic repetition of an uncertain crea
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ detail: 'Camunda non disponibile' }, { status: 502 })));
   const user = userEvent.setup();
   render(<RegistrationForm />);
-  await user.type(screen.getByLabelText(/ID paziente/), '001');
+  await user.type(screen.getByLabelText(/Codice fiscale/), 'RSSMRA80A01H501U');
   await user.selectOptions(screen.getByLabelText(/Codice diagnosi/), '6401');
   await user.type(screen.getByLabelText(/^Nome/), 'Mario');
   await user.type(screen.getByLabelText(/^Cognome/), 'Rossi');
@@ -66,7 +66,7 @@ it('allows correcting a rejected request without treating it as an uncertain cre
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ detail: 'Dati non validi' }, { status: 400 })));
   const user = userEvent.setup();
   render(<RegistrationForm />);
-  await user.type(screen.getByLabelText(/ID paziente/), '001');
+  await user.type(screen.getByLabelText(/Codice fiscale/), 'RSSMRA80A01H501U');
   await user.selectOptions(screen.getByLabelText(/Codice diagnosi/), '6401');
   await user.type(screen.getByLabelText(/^Nome/), 'Mario');
   await user.type(screen.getByLabelText(/^Cognome/), 'Rossi');

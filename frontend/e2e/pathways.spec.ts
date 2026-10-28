@@ -22,7 +22,7 @@ test('Case Manager can search, inspect old pathways and recover from a failed re
       oncologist: { role: 'ONCOLOGI', approved: null, examRequired: null, note: '', examResult: '' } } }));
   await page.goto('/');
   await page.getByRole('button', { name: 'Percorsi paziente', exact: true }).click();
-  await page.getByLabel('Cerca ID paziente').fill('0001');
+  await page.getByLabel('Cerca codice fiscale').fill('0001');
   await page.getByRole('button', { name: 'Cerca percorsi' }).click();
   await page.getByRole('button', { name: /Apri percorso/ }).click();
   await expect(page.getByText('Non disponibile: percorso con anagrafica precedente')).toBeVisible();
@@ -40,7 +40,7 @@ test('mobile Case Manager navigation remains usable and both new names and birth
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/pathways?*', route => route.fulfill({ json: { items: [], offset: 0, total: 0, hasNext: false } }));
   await page.goto('/');
-  await page.getByLabel('ID paziente').fill('0001');
+  await page.getByLabel('Codice fiscale').fill('RSSMRA80A01H501U');
   await page.getByLabel('Codice diagnosi').selectOption('6401');
   await page.getByRole('button', { name: 'Avvia percorso PDTA' }).click();
   await expect(page.getByLabel(/^Nome/)).toBeFocused();

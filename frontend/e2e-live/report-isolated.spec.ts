@@ -61,7 +61,7 @@ test('real Camunda diagnostic reports return independently to both requesting sp
   });
   await page.getByLabel('Vista operatore').selectOption('CASE_MANAGER');
   await page.getByRole('button', { name: 'Percorsi paziente', exact: true }).click();
-  await page.getByLabel('Cerca ID paziente').fill(patient);
+  await page.getByLabel('Cerca codice fiscale').fill(patient);
   await page.getByRole('button', { name: 'Cerca percorsi' }).click();
   await expect(page.getByRole('button', { name: /Apri percorso/ })).toHaveCount(1);
   await page.getByRole('button', { name: /Apri percorso/ }).click();

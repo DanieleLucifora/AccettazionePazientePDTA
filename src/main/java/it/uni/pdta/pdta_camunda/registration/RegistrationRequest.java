@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public record RegistrationRequest(
-        @NotBlank @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9][A-Za-z0-9._-]{0,63}") String patientID,
+        @NotBlank @Size(max = 16) String patientID,
         @NotBlank @Size(max = 100) @Pattern(regexp = ".*\\p{L}.*") String firstName,
         @NotBlank @Size(max = 100) @Pattern(regexp = ".*\\p{L}.*") String lastName,
         @NotNull @PastOrPresent LocalDate birthDate,
@@ -21,7 +21,7 @@ public record RegistrationRequest(
         @Size(max = 2048) String clinicalFileUrl) {
 
     public RegistrationRequest {
-        patientID = patientID == null ? null : patientID.trim();
+        patientID = TaxCode.normalize(patientID);
         firstName = normalizeName(firstName);
         lastName = normalizeName(lastName);
         diagnosiCode = diagnosiCode == null ? null : diagnosiCode.trim();
@@ -31,6 +31,10 @@ public record RegistrationRequest(
     private static String normalizeName(String name) {
         return name == null ? null : name.trim().replaceAll("\\s+", " ");
     }
+
+    @AssertTrue(message = "Inserire un codice fiscale valido di 16 caratteri")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isValidTaxCode() { return TaxCode.isValid(patientID); }
 
     @AssertTrue(message = "Nome e cognome non possono contenere caratteri di controllo")
     @com.fasterxml.jackson.annotation.JsonIgnore

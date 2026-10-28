@@ -1,3 +1,4 @@
+import { fakeTaxCode } from './fakeTaxCode';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 const camunda = process.env.PDTA_CAMUNDA_URL || 'http://127.0.0.1:8080';
@@ -20,11 +21,11 @@ async function processState(request: APIRequestContext, key: string): Promise<st
 
 for (const scenario of ['approve-both', 'reject-surgeon'] as const) {
   test(`real Camunda decisions: ${scenario}`, async ({ page, request }) => {
-    const patientID = `GUI-ACTION-${Date.now()}`;
+    const patientID = fakeTaxCode();
     let processKey: string | undefined;
     try {
       await page.goto('/');
-      await page.getByLabel('ID paziente').fill(patientID);
+      await page.getByLabel('Codice fiscale').fill(patientID);
       await page.getByLabel('Codice diagnosi').selectOption('6401');
       await page.getByLabel(/^Nome/).fill('Paziente');
       await page.getByLabel(/^Cognome/).fill('fittizio test decisioni');

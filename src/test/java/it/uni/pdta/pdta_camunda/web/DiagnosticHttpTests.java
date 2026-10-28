@@ -36,7 +36,7 @@ class DiagnosticHttpTests {
     @MockitoBean CamundaRestClient rest;
 
     @Test
-    void confirmPersistsSingleBookingAcrossRefreshAndCliCanReuseIt() throws Exception {
+    void confirmPersistsSingleBookingAcrossRefreshAndStoreReadsItBack() throws Exception {
         var task = task("5101", "Activity_1nqhbxs", "CHIRURGHI");
         when(rest.searchTasks(Map.of("filter", Map.of("state", "CREATED", "candidateGroup", "LABORATORIO"))))
                 .thenReturn(List.of(task));

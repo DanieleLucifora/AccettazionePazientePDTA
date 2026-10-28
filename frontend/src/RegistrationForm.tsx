@@ -40,7 +40,7 @@ export function RegistrationForm() {
     const data = new FormData(event.currentTarget);
     if (!draft) {
       setDraft({
-        patientID: String(data.get('patientID')).trim(),
+        patientID: String(data.get('patientID')).trim().toUpperCase(),
         firstName: String(data.get('firstName')).trim().replace(/\s+/g, ' '),
         lastName: String(data.get('lastName')).trim().replace(/\s+/g, ' '),
         birthDate: String(data.get('birthDate')),
@@ -113,9 +113,9 @@ export function RegistrationForm() {
         <form onSubmit={event => void submit(event)}>
           <fieldset disabled={busy || uncertain || !options || !!catalogError} hidden={draft !== null}>
             <div className="form-grid">
-              <label>ID paziente <span aria-hidden="true">*</span>
-                <input name="patientID" required maxLength={64} pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}" autoComplete="off" placeholder="Es. DEMO-001" />
-                <small>Identificativo interno, non il codice fiscale. Lettere, numeri, punto, trattino e underscore; zeri iniziali conservati.</small>
+              <label>Codice fiscale <span aria-hidden="true">*</span>
+                <input name="patientID" required maxLength={16} minLength={16} pattern="[A-Za-z]{6}[0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{3}[A-Za-z]" style={{ textTransform: 'uppercase' }} autoComplete="off" placeholder="16 caratteri" />
+                <small>Identifica il paziente in tutto il percorso. 16 caratteri, carattere di controllo verificato dal server. Usare solo codici fittizi.</small>
               </label>
               <label>Codice diagnosi <span aria-hidden="true">*</span>
                 <select name="diagnosiCode" required defaultValue="">
@@ -143,7 +143,7 @@ export function RegistrationForm() {
           {draft && <div>
             <h3>Conferma i dati prima dell'avvio</h3>
             <dl className="review">
-              <dt>ID paziente</dt><dd>{draft.patientID}</dd>
+              <dt>Codice fiscale</dt><dd>{draft.patientID}</dd>
               <dt>Nome</dt><dd>{draft.firstName}</dd>
               <dt>Cognome</dt><dd>{draft.lastName}</dd>
               <dt>Data di nascita</dt><dd>{draft.birthDate}</dd>

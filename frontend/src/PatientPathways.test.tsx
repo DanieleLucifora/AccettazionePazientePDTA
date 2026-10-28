@@ -29,7 +29,7 @@ it('searches exact IDs and pages without carrying a previous-page offset into a 
   await screen.findByText('Paziente precedente');
   await user.click(screen.getByRole('button', { name: 'Pagina successiva' }));
   expect(fetchMock).toHaveBeenLastCalledWith('/api/pathways?patientId=&state=&offset=20', expect.anything());
-  await user.type(screen.getByLabelText('Cerca ID paziente'), '0001');
+  await user.type(screen.getByLabelText('Cerca codice fiscale'), '0001');
   await user.selectOptions(screen.getByLabelText('Stato percorso'), 'ACTIVE');
   await user.click(screen.getByRole('button', { name: 'Cerca percorsi' }));
   expect(fetchMock).toHaveBeenLastCalledWith('/api/pathways?patientId=0001&state=ACTIVE&offset=0', expect.anything());
