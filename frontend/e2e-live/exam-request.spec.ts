@@ -14,8 +14,10 @@ for (const [mode, role, prefix] of [
     try {
       await page.goto('/');
       await page.getByLabel('ID paziente').fill(patientID);
-      await page.getByLabel('Codice diagnosi').fill('6401');
-      await page.getByLabel('Dati del paziente').fill('Paziente fittizio verifica richiesta esami');
+      await page.getByLabel('Codice diagnosi').selectOption('6401');
+      await page.getByLabel(/^Nome/).fill('Paziente');
+      await page.getByLabel(/^Cognome/).fill('fittizio verifica richiesta esami');
+      await page.getByLabel('Data di nascita').fill('1980-01-02');
       await page.getByRole('button', { name: 'Avvia percorso PDTA' }).click();
       const creating = page.waitForResponse(response => new URL(response.url()).pathname === '/api/registrations'
         && response.request().method() === 'POST');

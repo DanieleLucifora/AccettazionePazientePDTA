@@ -11,7 +11,8 @@ test('real parallel diagnostic requests retain their requester and refusals retu
   const initialSpecialistKeys = new Map<string, string>();
   try {
     const creation = await request.post('/api/registrations', {
-      data: { patientID, patientData: 'Paziente fittizio diagnostica parallela', diagnosiCode: '6401' },
+      data: { patientID, firstName: 'Paziente', lastName: 'fittizio diagnostica parallela',
+        birthDate: '1980-01-02', diagnosiCode: '6401' },
     });
     expect(creation.status(), await creation.text()).toBe(201);
     processKey = (await creation.json()).processInstanceKey;

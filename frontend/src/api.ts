@@ -3,10 +3,38 @@ export type Role = 'CASE_MANAGER' | SpecialistRole | 'LABORATORIO';
 
 export interface RegistrationInput {
   patientID: string;
-  patientData: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
   diagnosiCode: string;
   clinicalFileUrl: string;
 }
+export interface RegistrationOptions { diagnosisCodes: string[]; today: string }
+export const getRegistrationOptions = (signal: AbortSignal): Promise<RegistrationOptions> =>
+  request('/registrations/options', { signal });
+
+export interface PathwaySummary {
+  key: string; state: string; hasIncident: boolean; version: number; startDate: string; endDate: string;
+  patientID: string; patientData: string; firstName: string; lastName: string; birthDate: string; diagnosiCode: string;
+}
+export interface PathwayPage { items: PathwaySummary[]; offset: number; total: number; hasNext: boolean }
+export interface SpecialistProgress {
+  role: string; approved: boolean | null; examRequired: boolean | null; note: string; examResult: string;
+}
+export interface PathwayDetail {
+  pathway: PathwaySummary; outcome: string;
+  tasks: { key: string; name: string; elementId: string; state: string; assignee: string | null;
+    groups: string[]; createdAt: string; completedAt: string }[];
+  elements: { key: string; elementId: string; name: string; type: string; state: string;
+    startDate: string; endDate: string; hasIncident: boolean }[];
+  exams: { taskKey: string; requesterRole: string; decision: DiagnosticDecision; report: DiagnosticReport | null }[];
+  historicalSlots: { id: string; role: string; slot: ExamSlot; status: string }[];
+  surgeon: SpecialistProgress; oncologist: SpecialistProgress;
+}
+export const getPathways = (patientId: string, state: string, offset: number, signal: AbortSignal): Promise<PathwayPage> =>
+  request(`/pathways?${new URLSearchParams({ patientId, state, offset: String(offset) })}`, { signal });
+export const getPathway = (key: string, signal: AbortSignal): Promise<PathwayDetail> =>
+  request(`/pathways/${encodeURIComponent(key)}`, { signal });
 
 export interface RegistrationProgress {
   processInstanceKey: string;

@@ -23,6 +23,11 @@ import java.time.Duration;
 @Profile("web-ui")
 public class WebUiConfiguration {
     @Bean
+    it.uni.pdta.pdta_camunda.workflow.PatientPathwayService patientPathwayService(
+            CamundaRestClient rest, DiagnosticBookingStore store) {
+        return new it.uni.pdta.pdta_camunda.workflow.PatientPathwayService(rest, store);
+    }
+    @Bean
     DiagnosticReportService diagnosticReportService(CamundaRestClient rest, DiagnosticBookingStore store) {
         return new DiagnosticReportService(rest, store);
     }

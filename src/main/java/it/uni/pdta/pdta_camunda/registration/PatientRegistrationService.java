@@ -21,6 +21,12 @@ public class PatientRegistrationService {
     }
 
     public RegistrationProgress start(RegistrationRequest request, String caseManagerId) {
+        try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+            var violations = factory.getValidator().validate(request);
+            if (!violations.isEmpty()) {
+                throw new jakarta.validation.ConstraintViolationException(violations);
+            }
+        }
         long key = camundaClient.newCreateInstanceCommand()
                 .bpmnProcessId("presa_in_carico_pdta").latestVersion()
                 .variables(request.variables(caseManagerId)).send().join().getProcessInstanceKey();

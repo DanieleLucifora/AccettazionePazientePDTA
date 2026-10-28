@@ -11,6 +11,7 @@ import it.uni.pdta.pdta_camunda.workflow.DiagnosticTaskService;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticBookingCommand;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticReportCommand;
 import it.uni.pdta.pdta_camunda.workflow.DiagnosticReportService;
+import it.uni.pdta.pdta_camunda.workflow.PatientPathwayService;
 import it.uni.pdta.pdta_camunda.scheduling.domain.enums.ExamType;
 import it.uni.pdta.pdta_camunda.scheduling.domain.enums.BodyPart;
 import it.uni.pdta.pdta_camunda.scheduling.service.dto.SlotSuggestion;
@@ -34,14 +35,16 @@ public class PortalController {
     private final DiagnosticExamService exams;
     private final DiagnosticTaskService diagnostics;
     private final DiagnosticReportService reports;
+    private final PatientPathwayService pathways;
 
     public PortalController(PatientRegistrationService registrationService, SpecialistTaskService taskService,
-            DiagnosticExamService exams, DiagnosticTaskService diagnostics, DiagnosticReportService reports) {
+            DiagnosticExamService exams, DiagnosticTaskService diagnostics, DiagnosticReportService reports, PatientPathwayService pathways) {
         this.registrationService = registrationService;
         this.taskService = taskService;
         this.exams = exams;
         this.diagnostics = diagnostics;
         this.reports = reports;
+        this.pathways = pathways;
     }
 
     @PostMapping("/registrations")
@@ -49,6 +52,13 @@ public class PortalController {
     public RegistrationProgress register(@Valid @RequestBody RegistrationRequest request) {
         return registrationService.start(request, DEMO_CASE_MANAGER);
     }
+
+    @GetMapping("/registrations/options")
+    public RegistrationOptions registrationOptions() {
+        return new RegistrationOptions(it.uni.pdta.pdta_camunda.registration.DiagnosisCatalog.codes(), LocalDate.now());
+    }
+
+    public record RegistrationOptions(List<String> diagnosisCodes, LocalDate today) {}
 
     @PostMapping("/registrations/{key}/complete-access")
     public RegistrationProgress completeAccess(@PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key)
@@ -138,4 +148,18 @@ public class PortalController {
     }
 
     public record ReportStatus(DiagnosticReportService.ReportView report) {}
+
+    @GetMapping("/pathways")
+    public PatientPathwayService.PathwayPage pathways(
+            @RequestParam(defaultValue = "") @jakarta.validation.constraints.Size(max = 64) String patientId,
+            @RequestParam(defaultValue = "") @Pattern(regexp = "^$|ACTIVE|COMPLETED|TERMINATED") String state,
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int offset) throws Exception {
+        return pathways.list(patientId.trim(), state, offset);
+    }
+
+    @GetMapping("/pathways/{key}")
+    public PatientPathwayService.PathwayDetail pathway(
+            @PathVariable @Pattern(regexp = "[1-9][0-9]{0,18}") String key) throws Exception {
+        return pathways.detail(key);
+    }
 }

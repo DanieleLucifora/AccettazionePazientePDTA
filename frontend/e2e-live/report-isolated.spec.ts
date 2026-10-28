@@ -48,4 +48,36 @@ test('real Camunda diagnostic reports return independently to both requesting sp
     }
     await page.getByRole('button', { name: 'Torna alle richieste' }).click();
   }
+  await expect.poll(async () => {
+    const response = await request.get(`/api/pathways/${processKey}`);
+    if (!response.ok()) return null;
+    const body = await response.json();
+    return {
+      firstName: body.pathway.firstName, birthDate: body.pathway.birthDate,
+      reports: body.exams.map((exam: { report: { status: string } | null }) => exam.report?.status).sort(),
+    };
+  }, { timeout: 30000, intervals: [1000, 2000, 3000] }).toEqual({
+    firstName: 'Paziente', birthDate: '1980-01-02', reports: ['SENT', 'SENT'],
+  });
+  await page.getByLabel('Vista operatore').selectOption('CASE_MANAGER');
+  await page.getByRole('button', { name: 'Percorsi paziente', exact: true }).click();
+  await page.getByLabel('Cerca ID paziente').fill(patient);
+  await page.getByRole('button', { name: 'Cerca percorsi' }).click();
+  await expect(page.getByRole('button', { name: /Apri percorso/ })).toHaveCount(1);
+  await page.getByRole('button', { name: /Apri percorso/ }).click();
+  await expect(page.getByText('1980-01-02', { exact: true })).toBeVisible();
+  for (const role of ['CHIRURGHI', 'ONCOLOGI']) {
+    await expect(page.getByText(`Referto dimostrativo ${role}.\nEsame completato per ${patient}.`, { exact: true })).toBeVisible();
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  const historical = await request.get('/api/pathways?offset=0');
+  expect(historical.ok(), await historical.text()).toBe(true);
+  const legacy: { key: string; birthDate: string } | undefined = (await historical.json()).items
+    .find((item: { key: string; birthDate: string }) => item.key !== processKey && !item.birthDate);
+  expect(legacy, 'A pre-structured admission is required for history compatibility validation').toBeDefined();
+  const legacyDetail = await request.get(`/api/pathways/${legacy!.key}`);
+  expect(legacyDetail.ok(), await legacyDetail.text()).toBe(true);
+  expect((await legacyDetail.json()).pathway.birthDate).toBe('');
+  console.log('PATHWAYS LIVE PASS: structured admission, exact ID, both persisted reports, historical admission and mobile layout.');
 });

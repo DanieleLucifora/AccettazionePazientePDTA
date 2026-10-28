@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test('real Camunda: registration, access retries and both specialist views', async ({ page, request }) => {
   const patientID = `GUI-TEST-${Date.now()}`;
-  const patientData = `Paziente fittizio verifica GUI "${patientID}"`;
+  const firstName = 'Paziente';
+  const lastName = `fittizio verifica GUI "${patientID}"`;
+  const patientData = `${firstName} ${lastName}`;
   const camunda = process.env.PDTA_CAMUNDA_URL || 'http://127.0.0.1:8080';
   let processKey: string | undefined;
   let creations = 0;
@@ -25,8 +27,10 @@ test('real Camunda: registration, access retries and both specialist views', asy
     await page.goto('/');
     await expect(page.getByText('DEMO LOCALE')).toBeVisible();
     await page.getByLabel('ID paziente').fill(patientID);
-    await page.getByLabel('Codice diagnosi').fill('6401');
-    await page.getByLabel('Dati del paziente').fill(patientData);
+    await page.getByLabel('Codice diagnosi').selectOption('6401');
+    await page.getByLabel(/^Nome/).fill(firstName);
+    await page.getByLabel(/^Cognome/).fill(lastName);
+    await page.getByLabel('Data di nascita').fill('1980-01-02');
     await page.getByRole('button', { name: 'Avvia percorso PDTA' }).click();
     await expect(page.getByText("Conferma i dati prima dell'avvio")).toBeVisible();
     expect(creations).toBe(0);
@@ -76,6 +80,13 @@ test('real Camunda: registration, access retries and both specialist views', asy
     expect(settledRetry.status()).toBe(200);
     expect((await settledRetry.json()).status).toBe('COMPLETED');
     expect(creations).toBe(1);
+    await page.getByLabel('Vista operatore').selectOption('CASE_MANAGER');
+    await page.getByRole('button', { name: 'Percorsi paziente', exact: true }).click();
+    await page.getByLabel('Cerca ID paziente').fill(patientID);
+    await page.getByRole('button', { name: 'Cerca percorsi' }).click();
+    await page.getByRole('button', { name: /Apri percorso/ }).click();
+    await expect(page.getByText('1980-01-02', { exact: true })).toBeVisible();
+    await expect(page.getByText(processKey!, { exact: true })).toBeVisible();
     console.log(JSON.stringify({ patientID, processKey, creations,
       specialistViews: 'PASS', immediateRetryHttp: repeated.status(), settledRetryHttp: settledRetry.status() }));
   } finally {

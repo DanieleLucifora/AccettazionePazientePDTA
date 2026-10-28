@@ -10,6 +10,9 @@ public interface DiagnosticBookingDecisionRepository extends JpaRepository<Diagn
     @EntityGraph(attributePaths = {"slot", "slot.resource", "slot.examProtocol"})
     Optional<DiagnosticBookingDecision> findById(String taskKey);
 
+    @EntityGraph(attributePaths = {"slot", "slot.resource", "slot.examProtocol"})
+    java.util.List<DiagnosticBookingDecision> findByProcessInstanceKeyOrderByDecidedAtDesc(Long key);
+
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {"slot", "slot.resource", "slot.examProtocol"})
     @org.springframework.data.jpa.repository.Query("select d from DiagnosticBookingDecision d where d.taskKey = :key")

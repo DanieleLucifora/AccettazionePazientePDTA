@@ -36,7 +36,7 @@ class PortalHttpTests {
 
     @Test
     void realHttpServerWiresRegistrationCompletionAndSpecialistQueries() throws Exception {
-        var input = new RegistrationRequest("DEMO-HTTP", "Paziente dimostrativo", "6401", "");
+        var input = new RegistrationRequest("DEMO-HTTP", "Paziente", "dimostrativo", java.time.LocalDate.of(1980, 1, 2), "6401", "");
         var instance = mock(ProcessInstanceEvent.class);
         when(instance.getProcessInstanceKey()).thenReturn(42L);
         when(camunda.newCreateInstanceCommand().bpmnProcessId("presa_in_carico_pdta").latestVersion()

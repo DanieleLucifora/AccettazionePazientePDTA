@@ -33,5 +33,6 @@ public interface BookingSlotRepository extends JpaRepository<BookingSlot, Long> 
         @Param("end") LocalDateTime end
     );
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"resource", "examProtocol"})
     List<BookingSlot> findByProcessInstanceKey(Long processInstanceKey);
 }

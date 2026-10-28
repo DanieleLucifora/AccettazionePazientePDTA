@@ -46,7 +46,8 @@ class DiagnosticReportLiveTests {
         try {
             String patient = "GUI-REPORT-" + System.currentTimeMillis();
             var creation = http.postForEntity("/api/registrations",
-                    Map.of("patientID", patient, "patientData", "Paziente fittizio refertazione isolata", "diagnosiCode", "6401"),
+                    Map.of("patientID", patient, "firstName", "Paziente", "lastName", "fittizio refertazione isolata",
+                            "birthDate", "1980-01-02", "diagnosiCode", "6401"),
                     JsonNode.class);
             assertThat(creation.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             processKey = creation.getBody().get("processInstanceKey").asText();

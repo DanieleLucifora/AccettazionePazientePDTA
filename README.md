@@ -36,7 +36,10 @@ Il sistema è composto da:
 ## Portale web locale
 
 Disponibili:
-* inserimento paziente con riepilogo di conferma e avvio del processo con le variabili BPMN esistenti;
+* accesso con ID paziente, nome, cognome e data di nascita obbligatori,
+  selezione dei codici diagnosi DMN e riepilogo prima dell'avvio;
+* area Case Manager **Percorsi paziente** con ricerca per ID esatto, filtro di stato,
+  paginazione e dettaglio storico di attivita', prenotazioni e referti;
 * completamento separato del task di accesso, ripetibile senza avviare un nuovo processo;
 * selettore dimostrativo Case Manager / Chirurgo / Oncologo / Diagnostica;
 * consultazione delle attivita' specialistiche, aggiornata ogni 5 secondi;
@@ -62,8 +65,8 @@ Gli specialisti simulati sono `CH001` (chirurgo) e `ON001` (oncologo), scelti da
 backend per il ruolo selezionato, non dal corpo della richiesta.
 L'operatore Diagnostica simulato e' `LAB001` (Mario Neri).
 Prenotazione definitiva e refertazione sono disponibili nella GUI e nella CLI.
-I dati paziente restano variabili Camunda: questo incremento non introduce un'anagrafica
-o una lista persistente dei casi nel database applicativo.
+I dati paziente restano variabili Camunda: la lista dei percorsi interroga gli indici
+del motore, senza introdurre una seconda anagrafica nel database applicativo.
 
 ### Sviluppo con frontend separato
 
@@ -119,6 +122,9 @@ eseguito prima del packaging. Senza il profilo Spring le API del portale non son
 | Metodo | Endpoint | Risultato |
 |---|---|---|
 | POST | `/api/registrations` | `201`, chiave del processo come stringa e stato `WAITING` |
+| GET | `/api/registrations/options` | Codici diagnosi letti dalla DMN e data corrente del server |
+| GET | `/api/pathways?patientId=0001&state=ACTIVE&offset=0` | Fino a 20 percorsi, totale e `hasNext`; filtri opzionali, stato `ACTIVE` / `COMPLETED` / `TERMINATED` |
+| GET | `/api/pathways/{key}` | Anagrafica disponibile, stato motore, eventi, attivita', decisioni diagnostiche, prenotazioni storiche e referti |
 | POST | `/api/registrations/{key}/complete-access` | `200`, `WAITING` oppure `COMPLETED` per la sola raccolta dati iniziale |
 | GET | `/api/tasks?role=CHIRURGHI` | Task aperti del gruppo con dati paziente |
 | GET | `/api/tasks?role=ONCOLOGI` | Task aperti del gruppo con dati paziente |
@@ -134,6 +140,78 @@ eseguito prima del packaging. Senza il profilo Spring le API del portale non son
 | POST | `/api/diagnostics/tasks/{key}/booking` | `200`, `BOOKED` oppure `COMPLETED` per il rifiuto restituito a Camunda |
 | POST | `/api/diagnostics/tasks/{key}/report` | `200`, referto persistito e stato `SENT` dopo conferma Camunda |
 | GET | `/api/diagnostics/tasks/{key}/report` | `200`, `{"report":null}` se assente, oppure testo, date e stato `PENDING` / `SENT`, anche a task chiuso |
+
+### Qualita' dei dati di accesso
+
+GUI e CLI richiedono ID paziente, nome, cognome, data di nascita e codice diagnosi.
+L'ID e' un identificativo interno, **non un codice fiscale**: massimo 64 caratteri,
+iniziale alfanumerica, poi lettere ASCII, numeri, punto, underscore o trattino.
+Resta una stringa, conservando gli zeri iniziali. Non e' un vincolo di unicita':
+un paziente puo' avere piu' percorsi; verificare quelli esistenti prima dell'inserimento.
+Nome e cognome sono obbligatori (massimo 100 caratteri ciascuno), devono contenere
+lettere e supportano accenti, apostrofi, trattini e nomi composti. Gli spazi vengono
+normalizzati; la data deve essere valida, con anno positivo e non futura rispetto al server.
+
+Il selettore diagnosi usa le sei regole della DMN nel pacchetto (`1001`, `2609`,
+`3202`, `5201`, `6401`, `7001`), senza inventare descrizioni cliniche o modificarne
+i criteri di inclusione. La DMN distribuita in Camunda deve coincidere con quella
+nel pacchetto applicativo. Un errore di caricamento del catalogo blocca l'inserimento.
+L'URL della cartella resta facoltativo: solo URL assoluti HTTP/HTTPS con host e senza
+credenziali incorporate. Non si aggiungono motivo di accesso, note o codice fiscale.
+
+Il nuovo corpo di `POST /api/registrations` e':
+
+```json
+{
+  "patientID": "DEMO-0001",
+  "firstName": "Paziente",
+  "lastName": "Fittizio",
+  "birthDate": "1980-01-02",
+  "diagnosiCode": "6401",
+  "clinicalFileUrl": ""
+}
+```
+
+Il backend ripete le validazioni anche per la CLI. Il vecchio corpo con solo
+`patientData` non e' piu' valido per **nuovi inserimenti**. Per compatibilita' con
+specialisti e worker vengono ancora scritti `patientID`, `patientData` (nome e
+cognome), `diagnosiCode` e `caseManagerId`; si aggiungono `patientFirstName`,
+`patientLastName`, `patientBirthDate` e `registrationSchemaVersion: 2`.
+Non occorrono migrazioni dei dati o una nuova distribuzione BPMN/DMN.
+Il modulo nativo Tasklist rimane quello legacy: i controlli descritti si applicano
+agli ingressi GUI/CLI/API, non a modifiche dirette delle variabili da altri client.
+
+### Percorsi paziente
+
+Nella vista **Case Manager**, scegli **Percorsi paziente** nel menu (disponibile
+anche su mobile). Cerca un ID esatto, inclusi gli zeri iniziali, oppure consulta
+tutti i percorsi; filtra per stato e scorri pagine di 20 risultati, dal piu' recente.
+Apri il dettaglio per vedere anagrafica, diagnosi, versione BPMN, date,
+stato tecnico e incidenti, attivita' con assegnazioni, eventi, decisioni diagnostiche,
+prenotazioni ed eventuali referti. Non sono presenti comandi di modifica.
+
+Sono inclusi i percorsi precedenti ancora conservati in Camunda: i campi
+anagrafici non strutturati restano nel testo originale; nome, cognome e data di
+nascita mancanti non vengono ricostruiti. Le prenotazioni CLI senza decisione
+collegata al task sono mostrate separatamente, senza attribuire loro un referto
+per supposizione. Gli esiti piu' vecchi possono esistere solo nelle variabili
+`chirurgoExamResult` / `oncologoExamResult`, mostrate come ultimo esito del ruolo:
+non costituiscono uno storico completo di tutti i referti precedenti.
+
+Lo stato `COMPLETED` del motore non certifica l'accettazione clinica.
+La GUI distingue l'evento di conclusione PDTA dall'evento di esclusione raggiunto
+in un ramo; quest'ultimo non chiude necessariamente gli altri rami paralleli.
+I flag specialistici sono l'ultima fotografia delle variabili e possono anche
+derivare da una richiesta di esame: un flag negativo da solo non e' un rifiuto.
+I referti salvati ma senza conferma di invio restano `PENDING`, senza riconciliazioni
+o comandi automatici in questa vista di sola lettura.
+
+Gli indici Camunda sono asincroni: dopo un'azione usa **Aggiorna percorsi** o
+**Aggiorna dettaglio percorso**. Le letture di motore e database non costituiscono
+una fotografia transazionale comune. Gli errori sono espliciti e un aggiornamento
+fallito nasconde i dati precedenti; un percorso non trovato restituisce `404`,
+non un falso stato completato. Lo storico e' limitato dalla conservazione dei
+dati Camunda e dal database di scheduling condiviso utilizzato.
 
 ### Prenotazione diagnostica
 
@@ -210,8 +288,7 @@ solo se Camunda mostra il task `COMPLETED` con testo e chiave di correlazione
 corrispondenti. Non ripete comandi Camunda. Uno stato chiuso senza questa evidenza,
 un task annullato, o un errore di lettura non vengono trasformati in un invio riuscito:
 verifica su Operate. I riepiloghi gia' confermati restano disponibili tramite l'API
-del referto usando la chiave del task; non e' ancora presente un archivio storico
-dei referti nella navigazione del portale.
+del referto usando la chiave del task e nel dettaglio **Percorsi paziente**.
 
 Il pulsante **Apri dettaglio** mostra una scheda dedicata, aggiornata ogni 5 secondi,
 con ritorno alla lista. La sola apertura del dettaglio non assegna o completa il task.

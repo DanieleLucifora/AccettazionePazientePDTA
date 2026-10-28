@@ -46,6 +46,7 @@ public class PortalExceptionHandler {
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HandlerMethodValidationException.class,
+            jakarta.validation.ConstraintViolationException.class,
             MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class,
             MissingServletRequestParameterException.class})
     public ProblemDetail invalidRequest(Exception exception) {

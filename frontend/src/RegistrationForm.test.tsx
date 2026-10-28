@@ -3,6 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { RegistrationForm } from './RegistrationForm';
 
+vi.mock('./api', async importOriginal => ({
+  ...await importOriginal<typeof import('./api')>(),
+  getRegistrationOptions: async () => ({ diagnosisCodes: ['6401', '1001'], today: '2026-10-28' }),
+}));
+
 afterEach(() => vi.unstubAllGlobals());
 
 it('registers once and retries only the access task when indexing is delayed', async () => {
@@ -14,8 +19,10 @@ it('registers once and retries only the access task when indexing is delayed', a
   const user = userEvent.setup();
   render(<RegistrationForm />);
   await user.type(screen.getByLabelText(/ID paziente/), '001');
-  await user.type(screen.getByLabelText(/Codice diagnosi/), '6401');
-  await user.type(screen.getByLabelText(/Dati del paziente/), 'Mario Rossi');
+  await user.selectOptions(screen.getByLabelText(/Codice diagnosi/), '6401');
+  await user.type(screen.getByLabelText(/^Nome/), 'Mario');
+  await user.type(screen.getByLabelText(/^Cognome/), 'Rossi');
+  await user.type(screen.getByLabelText(/Data di nascita/), '1980-01-02');
   await user.click(screen.getByRole('button', { name: 'Avvia percorso PDTA' }));
   expect(fetchMock).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Conferma e avvia' }));
@@ -44,8 +51,10 @@ it('shows upstream failures and blocks automatic repetition of an uncertain crea
   const user = userEvent.setup();
   render(<RegistrationForm />);
   await user.type(screen.getByLabelText(/ID paziente/), '001');
-  await user.type(screen.getByLabelText(/Codice diagnosi/), '6401');
-  await user.type(screen.getByLabelText(/Dati del paziente/), 'Mario Rossi');
+  await user.selectOptions(screen.getByLabelText(/Codice diagnosi/), '6401');
+  await user.type(screen.getByLabelText(/^Nome/), 'Mario');
+  await user.type(screen.getByLabelText(/^Cognome/), 'Rossi');
+  await user.type(screen.getByLabelText(/Data di nascita/), '1980-01-02');
   await user.click(screen.getByRole('button', { name: 'Avvia percorso PDTA' }));
   await user.click(screen.getByRole('button', { name: 'Conferma e avvia' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Camunda non disponibile');
@@ -58,8 +67,10 @@ it('allows correcting a rejected request without treating it as an uncertain cre
   const user = userEvent.setup();
   render(<RegistrationForm />);
   await user.type(screen.getByLabelText(/ID paziente/), '001');
-  await user.type(screen.getByLabelText(/Codice diagnosi/), '6401');
-  await user.type(screen.getByLabelText(/Dati del paziente/), 'Mario Rossi');
+  await user.selectOptions(screen.getByLabelText(/Codice diagnosi/), '6401');
+  await user.type(screen.getByLabelText(/^Nome/), 'Mario');
+  await user.type(screen.getByLabelText(/^Cognome/), 'Rossi');
+  await user.type(screen.getByLabelText(/Data di nascita/), '1980-01-02');
   await user.click(screen.getByRole('button', { name: 'Avvia percorso PDTA' }));
   await user.click(screen.getByRole('button', { name: 'Conferma e avvia' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Dati non validi');

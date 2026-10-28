@@ -73,14 +73,21 @@ public class CaseManagerCli {
                 continue;
             }
 
-            System.out.print("Dati Paziente (es. Mario Rossi - CF: RSSMRA80A01H501Z): ");
-            String patientData = scanner.nextLine().trim();
-            if (patientData.isEmpty()) {
-                System.err.println("✗ Dati paziente obbligatori");
+            System.out.print("Nome: ");
+            String firstName = scanner.nextLine().trim();
+            System.out.print("Cognome: ");
+            String lastName = scanner.nextLine().trim();
+            System.out.print("Data di nascita (AAAA-MM-GG): ");
+            java.time.LocalDate birthDate;
+            try {
+                birthDate = java.time.LocalDate.parse(scanner.nextLine().trim());
+            } catch (java.time.format.DateTimeParseException exception) {
+                System.err.println("Data di nascita non valida.");
                 continue;
             }
 
-            System.out.print("Codice Diagnosi (es. 6401): ");
+            System.out.println("Codici diagnosi previsti: " + it.uni.pdta.pdta_camunda.registration.DiagnosisCatalog.codes());
+            System.out.print("Codice Diagnosi: ");
             String diagnosiCode = scanner.nextLine().trim();
             if (diagnosiCode.isEmpty()) {
                 System.err.println("✗ Codice diagnosi obbligatorio");
@@ -93,7 +100,7 @@ public class CaseManagerCli {
             // Riepilogo
             System.out.println("\n" + colorize("=== RIEPILOGO DATI ===", Color.YELLOW));
             System.out.println("Patient ID: " + patientID);
-            System.out.println("Dati Paziente: " + patientData);
+            System.out.println("Paziente: " + firstName + " " + lastName + " - nascita: " + birthDate);
             System.out.println("Codice Diagnosi: " + diagnosiCode);
             System.out.println("URL Cartella: " + (clinicalFileUrl.isEmpty() ? "[non fornito]" : clinicalFileUrl));
             System.out.println();
@@ -108,7 +115,7 @@ public class CaseManagerCli {
             try {
                 System.out.print("Avvio processo 'presa_in_carico_pdta'... ");
                 var progress = registrationService.start(
-                        new RegistrationRequest(patientID, patientData, diagnosiCode, clinicalFileUrl),
+                        new RegistrationRequest(patientID, firstName, lastName, birthDate, diagnosiCode, clinicalFileUrl),
                         currentUser.getId());
                 System.out.println(colorize("Processo avviato con successo!", Color.GREEN));
                 System.out.println("Process Instance Key: " + progress.processInstanceKey());

@@ -31,6 +31,24 @@ public class DiagnosticBookingStore {
         return decisions.findById(taskKey);
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<DiagnosticBookingDecision> forProcess(String key) {
+        return decisions.findByProcessInstanceKeyOrderByDecidedAtDesc(Long.valueOf(key));
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<HistoricalSlot> historicalSlots(String key) {
+        var linked = decisions.findByProcessInstanceKeyOrderByDecidedAtDesc(Long.valueOf(key)).stream()
+                .filter(item -> item.getSlot() != null).map(item -> item.getSlot().getId()).collect(java.util.stream.Collectors.toSet());
+        return slots.findByProcessInstanceKey(Long.valueOf(key)).stream().filter(slot -> !linked.contains(slot.getId()))
+                .sorted(java.util.Comparator.comparing(it.uni.pdta.pdta_camunda.scheduling.domain.entity.BookingSlot::getStartTime))
+                .map(slot -> new HistoricalSlot(slot.getId().toString(), slot.getCreatedByRole(),
+                        new SlotSuggestion(slot.getResource(), slot.getExamProtocol(), slot.getStartTime(), slot.getEndTime()),
+                        slot.getStatus())).toList();
+    }
+
+    public record HistoricalSlot(String id, String role, SlotSuggestion slot, SlotStatus status) {}
+
     @Transactional
     public DiagnosticBookingDecision saveReport(String taskKey, String processKey, DiagnosticRequestContext request,
             DiagnosticReportCommand command, LocalDateTime now) {

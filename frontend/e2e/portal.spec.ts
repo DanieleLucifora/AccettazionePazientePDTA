@@ -1,11 +1,18 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/registrations/options', route => route.fulfill({
+    json: { diagnosisCodes: ['1001', '2609', '3202', '5201', '6401', '7001'], today: '2026-10-28' },
+  }));
+});
+
 test('registration survives reload and does not start a second process', async ({ page }) => {
   let creations = 0;
   let completions = 0;
   await page.route('**/api/registrations', async route => {
     creations++;
-    expect(route.request().postDataJSON()).toMatchObject({ patientID: '001', diagnosiCode: '6401' });
+    expect(route.request().postDataJSON()).toMatchObject({ patientID: '001', diagnosiCode: '6401',
+      firstName: 'Paziente', lastName: 'dimostrativo', birthDate: '1980-01-02' });
     await route.fulfill({ status: 201, json: { processInstanceKey: '42', status: 'WAITING' } });
   });
   await page.route('**/api/registrations/42/complete-access', async route => {
@@ -14,8 +21,10 @@ test('registration survives reload and does not start a second process', async (
   });
   await page.goto('/');
   await page.getByLabel('ID paziente').fill('001');
-  await page.getByLabel('Codice diagnosi').fill('6401');
-  await page.getByLabel('Dati del paziente').fill('Paziente dimostrativo');
+  await page.getByLabel('Codice diagnosi').selectOption('6401');
+  await page.getByLabel(/^Nome/).fill('Paziente');
+  await page.getByLabel(/^Cognome/).fill('dimostrativo');
+  await page.getByLabel('Data di nascita').fill('1980-01-02');
   await page.getByRole('button', { name: 'Avvia percorso PDTA' }).click();
   await expect(page.getByText('Conferma i dati prima dell\'avvio')).toBeVisible();
   expect(creations).toBe(0);

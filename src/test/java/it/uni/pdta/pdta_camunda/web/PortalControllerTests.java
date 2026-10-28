@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = {PortalController.class, PortalExceptionHandler.class})
 class PortalControllerTests {
     @MockitoBean it.uni.pdta.pdta_camunda.workflow.DiagnosticReportService reports;
+    @MockitoBean it.uni.pdta.pdta_camunda.workflow.PatientPathwayService pathways;
     @Autowired MockMvc mvc;
     @MockitoBean PatientRegistrationService registration;
     @MockitoBean SpecialistTaskService tasks;
@@ -99,7 +100,7 @@ class PortalControllerTests {
         when(registration.start(any(), eq("CM001"))).thenReturn(new RegistrationProgress("42", AccessStatus.WAITING));
         mvc.perform(post("/api/registrations").contentType("application/json")
                 .content("""
-                        {"patientID":"001","patientData":"Mario Rossi","diagnosiCode":"6401"}
+                        {"patientID":"001","firstName":"Mario","lastName":"Rossi","birthDate":"1980-01-02","diagnosiCode":"6401"}
                         """))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.processInstanceKey").value("42"))
                 .andExpect(jsonPath("$.status").value("WAITING"));

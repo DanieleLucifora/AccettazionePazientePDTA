@@ -20,7 +20,7 @@ class PatientRegistrationServiceTests {
 
     @Test
     void startsWithExistingBpmnVariablesAndStringKey() {
-        var request = new RegistrationRequest(" 001 ", " Mario \"Rossi\" ", "6401", null);
+        var request = new RegistrationRequest(" 001 ", " Mario ", " \"Rossi\" ", java.time.LocalDate.of(1980, 1, 2), "6401", null);
         var event = mock(ProcessInstanceEvent.class);
         when(event.getProcessInstanceKey()).thenReturn(2251799813685249L);
         when(camunda.newCreateInstanceCommand().bpmnProcessId("presa_in_carico_pdta").latestVersion()

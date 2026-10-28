@@ -7,7 +7,8 @@ import App from './App';
 afterEach(() => vi.unstubAllGlobals());
 
 it('changes specialist view without showing the previous role patient data', async () => {
-  const fetchMock = vi.fn().mockImplementation((url: string) => Promise.resolve(Response.json([
+  const fetchMock = vi.fn().mockImplementation((url: string) => Promise.resolve(Response.json(url.endsWith('/registrations/options')
+    ? { diagnosisCodes: ['6401'], today: '2026-10-28' } : [
     { taskKey: url.includes('CHIRURGHI') ? '1' : '2', processInstanceKey: '42',
       name: 'Valutazione', assignee: null, patientID: '001', diagnosiCode: '6401',
       patientData: url.includes('CHIRURGHI') ? 'Paziente chirurgia' : 'Paziente oncologia' },
@@ -27,7 +28,7 @@ it('changes specialist view without showing the previous role patient data', asy
 });
 
 it('shows a task retrieval error rather than an empty successful task list', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ detail: 'Errore Camunda' }, { status: 502 })));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(Response.json({ detail: 'Errore Camunda' }, { status: 502 }))));
   const client = new QueryClient();
   const view = render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
   await userEvent.selectOptions(screen.getByLabelText('Vista operatore'), 'ONCOLOGI');

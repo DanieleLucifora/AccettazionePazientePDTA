@@ -30,6 +30,54 @@ public class CamundaRestClient {
         this.objectMapper = new ObjectMapper();
     }
 
+    public JsonNode searchProcessInstances(Map<String, Object> body) throws Exception {
+        return searchReadPage("/process-instances/search", body);
+    }
+
+    public JsonNode getProcessInstance(String key) throws Exception {
+        return objectMapper.readTree(restTemplate.getForObject(baseUrl + "/process-instances/" + key, String.class));
+    }
+
+    public Map<String, Object> getProcessVariables(String key) throws Exception {
+        Map<String, Object> result = new HashMap<>();
+        int offset = 0;
+        while (true) {
+            var root = searchReadPage("/variables/search", Map.of(
+                    "filter", Map.of("processInstanceKey", key, "scopeKey", key),
+                    "page", Map.of("from", offset, "limit", 100)));
+            var items = root.path("items");
+            for (var item : items) {
+                if (!key.equals(item.path("scopeKey").asText())) continue;
+                var full = item.path("isTruncated").asBoolean()
+                        ? objectMapper.readTree(restTemplate.getForObject(baseUrl + "/variables/" + item.path("variableKey").asText(), String.class))
+                        : item;
+                result.put(full.path("name").asText(), objectMapper.readValue(full.path("value").asText(), Object.class));
+            }
+            offset += items.size();
+            if (items.size() < 100) return result;
+        }
+    }
+
+    public List<JsonNode> getProcessElements(String key) throws Exception {
+        List<JsonNode> result = new ArrayList<>();
+        int offset = 0;
+        while (true) {
+            var root = searchReadPage("/element-instances/search",
+                    Map.of("filter", Map.of("processInstanceKey", key), "page", Map.of("from", offset, "limit", 100)));
+            root.path("items").forEach(result::add);
+            offset += root.path("items").size();
+            if (root.path("items").size() < 100) return result;
+        }
+    }
+
+    private JsonNode searchReadPage(String path, Map<String, Object> body) throws Exception {
+        var root = objectMapper.readTree(restTemplate.postForObject(baseUrl + path, body, String.class));
+        if (root == null || !root.path("items").isArray()) {
+            throw new IllegalStateException("Risposta di consultazione Camunda priva di items.");
+        }
+        return root;
+    }
+
     public Map<String, Object> getTypedTaskVariables(String userTaskKey) throws Exception {
         Map<String, Object> variables = new HashMap<>();
         int offset = 0;
@@ -118,6 +166,8 @@ public class CamundaRestClient {
                 task.assignee = taskNode.path("assignee").asText(null);
                 task.processInstanceKey = taskNode.path("processInstanceKey").asText();
                 task.elementId = taskNode.path("elementId").asText();
+                task.creationDate = taskNode.path("creationDate").asText("");
+                task.completionDate = taskNode.path("completionDate").asText("");
 
                 JsonNode candidateGroupsNode = taskNode.path("candidateGroups");
                 if (candidateGroupsNode.isArray()) {
@@ -237,6 +287,8 @@ public class CamundaRestClient {
         public String assignee;
         public String processInstanceKey;
         public String elementId;
+        public String creationDate;
+        public String completionDate;
         public List<String> candidateGroups = new ArrayList<>();
         public Map<String, Object> variables = new HashMap<>();
 
